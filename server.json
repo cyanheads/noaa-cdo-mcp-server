@@ -11,7 +11,7 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "noaa-cdo-mcp-server",
+      "identifier": "@cyanheads/noaa-cdo-mcp-server",
       "runtimeHint": "node",
       "version": "0.1.0",
       "packageArguments": [
@@ -46,7 +46,7 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "noaa-cdo-mcp-server",
+      "identifier": "@cyanheads/noaa-cdo-mcp-server",
       "runtimeHint": "node",
       "version": "0.1.0",
       "packageArguments": [

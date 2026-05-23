@@ -11,16 +11,21 @@
 
 ---
 
-## First Session
+## Domain
 
-This project was just scaffolded with `bunx @cyanheads/mcp-ts-core init`. The framework, skills, and example definitions are in place — the domain isn't. The user's first messages will set direction; wait for them before proceeding.
+NOAA Climate Data Online (CDO) API v2 — historical weather data. 7 tools, 2 resources:
 
-> **Remove this section** from CLAUDE.md / AGENTS.md after completing these steps. The skills and conventions below remain — this block is one-time onboarding only.
+- `noaa_list_datasets` — list available CDO datasets
+- `noaa_list_data_categories` — list measurement category groups
+- `noaa_list_data_types` — list measurement labels by dataset or category
+- `noaa_find_locations` — search geographic locations by category
+- `noaa_find_stations` — search weather stations by location, bounding box, dataset
+- `noaa_get_station` — fetch full metadata for a single station
+- `noaa_fetch_data` — fetch historical observations with date range validation and unit selection
+- `noaa://datasets` resource — all CDO datasets as injectable context
+- `noaa://stations/{stationId}` resource — station metadata by ID
 
-1. **Get your bearings.** Take stock of the project tree, the skills in `skills/`, and the tools/MCP servers available. Light tool use is fine for context-building — you're mapping the territory, not committing yet.
-2. **Read the framework docs** — `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` (builders, Context, errors, exports, conventions)
-3. **Run the `setup` skill** — read `skills/setup/SKILL.md` and follow its checklist (project orientation, agent protocol file selection, echo definition cleanup, skill sync)
-4. **Design the server** — read `skills/design-mcp-server/SKILL.md` and work through it with the user to map the domain into tools, resources, and services before scaffolding
+**Service:** `src/services/cdo/cdo-service.ts` — HTTP client with retry/backoff, `NOAA_CDO_TOKEN` header auth.
 
 ---
 
