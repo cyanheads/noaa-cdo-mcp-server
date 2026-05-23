@@ -18,22 +18,13 @@ export const noaaStationResource = resource('noaa://stations/{stationId}', {
   async handler(params, ctx) {
     ctx.log.debug('Fetching station resource', { stationId: params.stationId });
     const service = getCdoService();
-    try {
-      const station = await service.getStation(params.stationId, ctx);
-      return JSON.stringify(station, null, 2);
-    } catch (err) {
-      // 404 from the API — surface as notFound so MCP clients get the right code
-      if (
-        err instanceof Error &&
-        (err.message.includes('404') || err.message.toLowerCase().includes('not found'))
-      ) {
-        throw notFound(
-          `Station "${params.stationId}" not found. Verify the ID format (e.g., GHCND:USC00450974) or use noaa_find_stations to discover valid IDs.`,
-          { stationId: params.stationId },
-          { cause: err },
-        );
-      }
-      throw err;
+    const station = await service.getStation(params.stationId, ctx);
+    if (!station.id) {
+      throw notFound(
+        `Station "${params.stationId}" not found. Verify the ID format (e.g., GHCND:USC00450974) or use noaa_find_stations to discover valid IDs.`,
+        { stationId: params.stationId },
+      );
     }
+    return JSON.stringify(station, null, 2);
   },
 });
