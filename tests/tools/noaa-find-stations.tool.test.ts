@@ -1,0 +1,83 @@
+/**
+ * @fileoverview Tests for the noaa_find_stations tool.
+ * @module tests/tools/noaa-find-stations.tool.test
+ */
+
+import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { noaaFindStations } from '@/mcp-server/tools/definitions/noaa-find-stations.tool.js';
+
+vi.mock('@/services/cdo/cdo-service.js', () => ({
+  getCdoService: vi.fn(),
+}));
+
+import { getCdoService } from '@/services/cdo/cdo-service.js';
+
+const mockStations = [
+  {
+    id: 'GHCND:USC00450974',
+    name: 'YAKIMA WA US',
+    latitude: 46.6039,
+    longitude: -120.5097,
+    elevation: 324.6,
+    elevationUnit: 'Meters',
+    mindate: '1948-01-01',
+    maxdate: '2024-12-31',
+    datacoverage: 0.99,
+  },
+  {
+    id: 'GHCND:USC00456789',
+    name: 'SPARSE STATION', // omits coordinate/coverage fields
+  },
+];
+
+beforeEach(() => {
+  vi.mocked(getCdoService).mockReturnValue({
+    findStations: vi.fn().mockResolvedValue({
+      results: mockStations,
+      metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
+    }),
+  } as unknown as ReturnType<typeof getCdoService>);
+});
+
+describe('noaaFindStations', () => {
+  it('returns station results with coordinates and coverage', async () => {
+    const ctx = createMockContext();
+    const input = noaaFindStations.input.parse({ locationId: 'FIPS:53', datasetId: 'GHCND' });
+    const result = await noaaFindStations.handler(input, ctx);
+
+    expect(result.results).toHaveLength(2);
+    const yakima = result.results[0];
+    expect(yakima.id).toBe('GHCND:USC00450974');
+    expect(yakima.latitude).toBe(46.6039);
+    expect(yakima.elevation).toBe(324.6);
+    expect(yakima.datacoverage).toBe(0.99);
+  });
+
+  it('preserves sparse upstream payloads — omits optional coordinate fields', async () => {
+    const ctx = createMockContext();
+    const input = noaaFindStations.input.parse({});
+    const result = await noaaFindStations.handler(input, ctx);
+
+    const sparse = result.results.find((s) => s.id === 'GHCND:USC00456789');
+    expect(sparse!.latitude).toBeUndefined();
+    expect(sparse!.longitude).toBeUndefined();
+    expect(sparse!.elevation).toBeUndefined();
+    expect(sparse!.datacoverage).toBeUndefined();
+  });
+
+  it('formats output with station IDs, names, coordinates, and dates', () => {
+    const blocks = noaaFindStations.format!({
+      results: mockStations,
+      metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
+    });
+    const text = blocks[0].text;
+    expect(text).toContain('GHCND:USC00450974');
+    expect(text).toContain('YAKIMA WA US');
+    expect(text).toContain('46.6039');
+    expect(text).toContain('324.6');
+    expect(text).toContain('Meters');
+    expect(text).toContain('1948-01-01');
+    expect(text).toContain('0'); // offset
+  });
+});

@@ -13,7 +13,8 @@
       "env": {
         "MCP_TRANSPORT_TYPE": "stdio",
         "MCP_AUTH_MODE": "none",
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "NOAA_CDO_TOKEN": "${NOAA_CDO_TOKEN}"
       }
     }
   },
@@ -22,5 +23,13 @@
   },
   "tools_generated": true,
   "prompts_generated": true,
-  "user_config": {}
+  "user_config": {
+    "NOAA_CDO_TOKEN": {
+      "type": "string",
+      "title": "NOAA CDO API Token",
+      "description": "Obtain free at https://www.ncdc.noaa.gov/cdo-web/token",
+      "required": true,
+      "secret": true
+    }
+  }
 }

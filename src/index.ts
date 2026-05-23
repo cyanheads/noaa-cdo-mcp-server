@@ -5,17 +5,36 @@
  */
 
 import { createApp } from '@cyanheads/mcp-ts-core';
-import { echoTool } from './mcp-server/tools/definitions/echo.tool.js';
-import { echoAppTool } from './mcp-server/tools/definitions/echo-app.app-tool.js';
-import { echoResource } from './mcp-server/resources/definitions/echo.resource.js';
-import { echoAppUiResource } from './mcp-server/resources/definitions/echo-app-ui.app-resource.js';
-import { echoPrompt } from './mcp-server/prompts/definitions/echo.prompt.js';
+import { noaaDatasetsResource } from './mcp-server/resources/definitions/noaa-datasets.resource.js';
+import { noaaStationResource } from './mcp-server/resources/definitions/noaa-station.resource.js';
+import { noaaFetchData } from './mcp-server/tools/definitions/noaa-fetch-data.tool.js';
+import { noaaFindLocations } from './mcp-server/tools/definitions/noaa-find-locations.tool.js';
+import { noaaFindStations } from './mcp-server/tools/definitions/noaa-find-stations.tool.js';
+import { noaaGetStation } from './mcp-server/tools/definitions/noaa-get-station.tool.js';
+import { noaaListDataCategories } from './mcp-server/tools/definitions/noaa-list-data-categories.tool.js';
+import { noaaListDataTypes } from './mcp-server/tools/definitions/noaa-list-data-types.tool.js';
+import { noaaListDatasets } from './mcp-server/tools/definitions/noaa-list-datasets.tool.js';
+import { initCdoService } from './services/cdo/cdo-service.js';
 
 await createApp({
-  tools: [echoTool, echoAppTool],
-  resources: [echoResource, echoAppUiResource],
-  prompts: [echoPrompt],
-  // instructions: 'Server-level orientation forwarded to the model on every initialize.\n' +
-  //   '- Use shortcut `X` for the most common case\n' +
-  //   '- Tools require auth via the `inventory:read` scope',
+  tools: [
+    noaaListDatasets,
+    noaaListDataCategories,
+    noaaListDataTypes,
+    noaaFindLocations,
+    noaaFindStations,
+    noaaGetStation,
+    noaaFetchData,
+  ],
+  resources: [noaaDatasetsResource, noaaStationResource],
+  prompts: [],
+  instructions:
+    'NOAA Climate Data Online (CDO) API v2 — historical weather observations and climate data.\n' +
+    'Primary workflow: noaa_find_locations → noaa_find_stations → noaa_fetch_data.\n' +
+    'Discovery: noaa_list_datasets → noaa_list_data_categories → noaa_list_data_types.\n' +
+    'Date range limits: daily datasets (GHCND etc.) max 1 year per request; monthly/annual (GSOM, GSOY) max 10 years.\n' +
+    'Always pass units=metric or units=standard to noaa_fetch_data — raw GHCND values are tenths-of-unit integers.',
+  setup() {
+    initCdoService();
+  },
 });

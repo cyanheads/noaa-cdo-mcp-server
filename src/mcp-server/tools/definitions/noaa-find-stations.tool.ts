@@ -1,0 +1,225 @@
+/**
+ * @fileoverview Search for NOAA CDO weather stations by location, bounding box, dataset, and data type.
+ * @module mcp-server/tools/definitions/noaa-find-stations
+ */
+
+import { tool, z } from '@cyanheads/mcp-ts-core';
+import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { getCdoService } from '@/services/cdo/cdo-service.js';
+
+export const noaaFindStations = tool('noaa_find_stations', {
+  title: 'Find NOAA CDO Stations',
+  description:
+    'Search for weather observation stations by location, bounding box, dataset, and data type. Returns station IDs, names, coordinates, elevation, and data coverage dates. Filter by locationId (e.g., "FIPS:37" for all NC stations), extent (lat/lon bounding box), datasetId, datatypeId, and date range. Station IDs returned here are used as stationId in noaa_fetch_data. A station must have data for the dataset and date range you want — filter by datasetId and startDate/endDate to ensure compatibility. Common station ID formats: GHCND:USC00450974, COOP:010008.',
+  annotations: { readOnlyHint: true, openWorldHint: true },
+  input: z.object({
+    locationId: z
+      .string()
+      .optional()
+      .describe(
+        'Filter to stations within this location ID (e.g., "FIPS:37" for NC, "CITY:US530031" for Seattle). Obtain from noaa_find_locations. Optional.',
+      ),
+    extent: z
+      .string()
+      .optional()
+      .describe(
+        'Bounding box filter as "minLat,minLon,maxLat,maxLon" (e.g., "47.5,-122.4,47.7,-122.1" for central Seattle). Optional.',
+      ),
+    datasetId: z
+      .string()
+      .optional()
+      .describe(
+        'Filter to stations that have data in this dataset (e.g., "GHCND" for daily observations). Optional.',
+      ),
+    datatypeId: z
+      .array(z.string())
+      .optional()
+      .describe(
+        'Filter to stations that record these data types (e.g., ["TMAX", "TMIN", "PRCP"]). Optional.',
+      ),
+    datacategoryId: z
+      .string()
+      .optional()
+      .describe('Filter to stations with data in this category (e.g., "TEMP"). Optional.'),
+    startDate: z
+      .string()
+      .optional()
+      .describe('Filter to stations with data on or after this ISO date (YYYY-MM-DD). Optional.'),
+    endDate: z
+      .string()
+      .optional()
+      .describe('Filter to stations with data on or before this ISO date (YYYY-MM-DD). Optional.'),
+    sortField: z
+      .enum(['id', 'name', 'mindate', 'maxdate', 'datacoverage'])
+      .optional()
+      .describe('Sort results by this field. Optional.'),
+    sortOrder: z
+      .enum(['asc', 'desc'])
+      .optional()
+      .describe('Sort direction. Optional; defaults to asc.'),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(1000)
+      .default(25)
+      .describe('Maximum number of results to return (1–1000). Defaults to 25.'),
+    offset: z
+      .number()
+      .int()
+      .min(0)
+      .default(0)
+      .describe('Zero-based index of the first result to return for pagination. Defaults to 0.'),
+  }),
+  output: z.object({
+    results: z
+      .array(
+        z
+          .object({
+            id: z.string().describe('Station ID (e.g., GHCND:USC00450974, COOP:010008).'),
+            name: z.string().describe('Station name.'),
+            latitude: z
+              .number()
+              .optional()
+              .describe('Station latitude in decimal degrees. Omitted when not provided.'),
+            longitude: z
+              .number()
+              .optional()
+              .describe('Station longitude in decimal degrees. Omitted when not provided.'),
+            elevation: z
+              .number()
+              .optional()
+              .describe(
+                'Station elevation. Unit depends on elevationUnit. Omitted when not provided.',
+              ),
+            elevationUnit: z
+              .string()
+              .optional()
+              .describe('Unit for elevation (e.g., "Meters"). Omitted when not provided.'),
+            mindate: z
+              .string()
+              .optional()
+              .describe(
+                'Earliest date data is available at this station. Omitted when not provided.',
+              ),
+            maxdate: z
+              .string()
+              .optional()
+              .describe(
+                'Latest date data is available at this station. Omitted when not provided.',
+              ),
+            datacoverage: z
+              .number()
+              .optional()
+              .describe('Fractional data coverage (0–1). Omitted when not provided.'),
+          })
+          .describe('A single station entry.'),
+      )
+      .describe('Matching stations.'),
+    metadata: z
+      .object({
+        resultset: z
+          .object({
+            count: z.number().describe('Total number of matching stations.'),
+            limit: z.number().describe('Page size used for this response.'),
+            offset: z.number().describe('Zero-based starting index of this page.'),
+          })
+          .describe('Pagination cursor fields for this response.'),
+      })
+      .optional()
+      .describe('Pagination metadata. Present when the API returns it.'),
+  }),
+
+  errors: [
+    {
+      reason: 'service_unavailable',
+      code: JsonRpcErrorCode.ServiceUnavailable,
+      when: 'NOAA CDO API is unreachable or returning errors.',
+      retryable: true,
+      recovery: 'Wait a moment and retry; NOAA CDO may be temporarily unavailable.',
+    },
+    {
+      reason: 'no_results',
+      code: JsonRpcErrorCode.NotFound,
+      when: 'Valid query but no stations matched the filters.',
+      recovery:
+        'Broaden the search by removing datasetId, datatypeId, or date range filters, or verify the locationId is correct.',
+    },
+  ],
+
+  async handler(input, ctx) {
+    ctx.log.info('Finding stations', {
+      locationId: input.locationId,
+      datasetId: input.datasetId,
+      datatypeId: input.datatypeId,
+    });
+
+    const service = getCdoService();
+    const response = await service.findStations(
+      {
+        locationid: input.locationId,
+        extent: input.extent,
+        datasetid: input.datasetId,
+        datatypeid: input.datatypeId,
+        datacategoryid: input.datacategoryId,
+        startdate: input.startDate,
+        enddate: input.endDate,
+        sortfield: input.sortField,
+        sortorder: input.sortOrder,
+        limit: input.limit,
+        offset: input.offset,
+      },
+      ctx,
+    );
+
+    const results = (response.results ?? []).map((st) => ({
+      id: st.id,
+      name: st.name,
+      ...(typeof st.latitude === 'number' && { latitude: st.latitude }),
+      ...(typeof st.longitude === 'number' && { longitude: st.longitude }),
+      ...(typeof st.elevation === 'number' && { elevation: st.elevation }),
+      ...(st.elevationUnit ? { elevationUnit: st.elevationUnit } : {}),
+      ...(st.mindate ? { mindate: st.mindate } : {}),
+      ...(st.maxdate ? { maxdate: st.maxdate } : {}),
+      ...(typeof st.datacoverage === 'number' && { datacoverage: st.datacoverage }),
+    }));
+
+    return {
+      results,
+      metadata: response.metadata,
+    };
+  },
+
+  format(result) {
+    const lines: string[] = [];
+    const meta = result.metadata?.resultset;
+    if (meta) {
+      lines.push(
+        `**Total:** ${meta.count} | **Limit:** ${meta.limit} | **Offset:** ${meta.offset}`,
+      );
+    }
+    if (result.results.length === 0) {
+      lines.push('\n_No stations matched the filters._');
+      return [{ type: 'text', text: lines.join('\n') }];
+    }
+    lines.push('');
+    for (const st of result.results) {
+      lines.push(`## ${st.name} (\`${st.id}\`)`);
+      const coordParts: string[] = [];
+      if (typeof st.latitude === 'number' && typeof st.longitude === 'number') {
+        coordParts.push(`${st.latitude.toFixed(4)}, ${st.longitude.toFixed(4)}`);
+      }
+      if (typeof st.elevation === 'number') {
+        coordParts.push(`elev ${st.elevation}${st.elevationUnit ? ' ' + st.elevationUnit : ''}`);
+      }
+      if (coordParts.length > 0) lines.push(`**Coords/Elevation:** ${coordParts.join(' | ')}`);
+      if (st.mindate && st.maxdate) {
+        lines.push(`**Data range:** ${st.mindate} – ${st.maxdate}`);
+      }
+      if (typeof st.datacoverage === 'number') {
+        lines.push(`**Coverage:** ${(st.datacoverage * 100).toFixed(0)}%`);
+      }
+    }
+    return [{ type: 'text', text: lines.join('\n') }];
+  },
+});
