@@ -105,7 +105,7 @@ export const noaaGetStation = tool('noaa_get_station', {
 
     if (typeof result.elevation === 'number') {
       lines.push(
-        `**Elevation:** ${result.elevation}${result.elevationUnit ? ' ' + result.elevationUnit : ''}`,
+        `**Elevation:** ${result.elevation}${result.elevationUnit ? ` ${result.elevationUnit}` : ''}`,
       );
     } else {
       lines.push('**Elevation:** Not available');

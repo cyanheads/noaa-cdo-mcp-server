@@ -70,7 +70,7 @@ export class CdoService {
   }
 
   /** Make a single authenticated GET request to the CDO API, with retry. */
-  private async get<T>(path: string, params: CdoListParams, ctx: Context): Promise<T> {
+  private get<T>(path: string, params: CdoListParams, ctx: Context): Promise<T> {
     const { token } = getServerConfig();
     const retryCtx = requestContextService.createRequestContext({
       operation: `cdo.${path}`,
@@ -127,15 +127,12 @@ export class CdoService {
   }
 
   /** Fetch datasets, optionally filtered. */
-  async listDatasets(
-    params: CdoListParams,
-    ctx: Context,
-  ): Promise<CdoCollectionResponse<CdoDataset>> {
+  listDatasets(params: CdoListParams, ctx: Context): Promise<CdoCollectionResponse<CdoDataset>> {
     return this.get<CdoCollectionResponse<CdoDataset>>('datasets', params, ctx);
   }
 
   /** Fetch data categories, optionally filtered. */
-  async listDataCategories(
+  listDataCategories(
     params: CdoListParams,
     ctx: Context,
   ): Promise<CdoCollectionResponse<CdoDataCategory>> {
@@ -143,39 +140,27 @@ export class CdoService {
   }
 
   /** Fetch data types, optionally filtered. */
-  async listDataTypes(
-    params: CdoListParams,
-    ctx: Context,
-  ): Promise<CdoCollectionResponse<CdoDataType>> {
+  listDataTypes(params: CdoListParams, ctx: Context): Promise<CdoCollectionResponse<CdoDataType>> {
     return this.get<CdoCollectionResponse<CdoDataType>>('datatypes', params, ctx);
   }
 
   /** Fetch locations, optionally filtered. */
-  async findLocations(
-    params: CdoListParams,
-    ctx: Context,
-  ): Promise<CdoCollectionResponse<CdoLocation>> {
+  findLocations(params: CdoListParams, ctx: Context): Promise<CdoCollectionResponse<CdoLocation>> {
     return this.get<CdoCollectionResponse<CdoLocation>>('locations', params, ctx);
   }
 
   /** Fetch stations, optionally filtered. */
-  async findStations(
-    params: CdoListParams,
-    ctx: Context,
-  ): Promise<CdoCollectionResponse<CdoStation>> {
+  findStations(params: CdoListParams, ctx: Context): Promise<CdoCollectionResponse<CdoStation>> {
     return this.get<CdoCollectionResponse<CdoStation>>('stations', params, ctx);
   }
 
   /** Fetch a single station by ID. */
-  async getStation(stationId: string, ctx: Context): Promise<CdoStation> {
+  getStation(stationId: string, ctx: Context): Promise<CdoStation> {
     return this.get<CdoStation>(`stations/${encodeURIComponent(stationId)}`, {}, ctx);
   }
 
   /** Fetch observation data. */
-  async fetchData(
-    params: CdoListParams,
-    ctx: Context,
-  ): Promise<CdoCollectionResponse<CdoDataRecord>> {
+  fetchData(params: CdoListParams, ctx: Context): Promise<CdoCollectionResponse<CdoDataRecord>> {
     return this.get<CdoCollectionResponse<CdoDataRecord>>('data', params, ctx);
   }
 }

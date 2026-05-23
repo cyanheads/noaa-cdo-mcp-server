@@ -210,7 +210,7 @@ export const noaaFindStations = tool('noaa_find_stations', {
         coordParts.push(`${st.latitude.toFixed(4)}, ${st.longitude.toFixed(4)}`);
       }
       if (typeof st.elevation === 'number') {
-        coordParts.push(`elev ${st.elevation}${st.elevationUnit ? ' ' + st.elevationUnit : ''}`);
+        coordParts.push(`elev ${st.elevation}${st.elevationUnit ? ` ${st.elevationUnit}` : ''}`);
       }
       if (coordParts.length > 0) lines.push(`**Coords/Elevation:** ${coordParts.join(' | ')}`);
       if (st.mindate && st.maxdate) {

@@ -89,6 +89,13 @@ export const noaaListDataCategories = tool('noaa_list_data_categories', {
       retryable: true,
       recovery: 'Wait a moment and retry; NOAA CDO may be temporarily unavailable.',
     },
+    {
+      reason: 'no_results',
+      code: JsonRpcErrorCode.NotFound,
+      when: 'Valid query but no categories matched the filters.',
+      recovery:
+        'Try a different datasetId, location, or station filter, or remove optional filters to list all categories.',
+    },
   ],
 
   async handler(input, ctx) {
