@@ -2,8 +2,14 @@
   "manifest_version": "0.3",
   "name": "noaa-cdo-mcp-server",
   "version": "0.1.1",
-  "description": "",
-  "author": { "name": "" },
+  "description": "Access NOAA Climate Data Online (CDO) API v2 — search stations, locations, datasets, and fetch historical weather observations via MCP. STDIO or Streamable HTTP.",
+  "author": { "name": "cyanheads" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cyanheads/noaa-cdo-mcp-server"
+  },
+  "homepage": "https://github.com/cyanheads/noaa-cdo-mcp-server#readme",
+  "license": "Apache-2.0",
   "server": {
     "type": "node",
     "entry_point": "dist/index.js",
@@ -11,10 +17,10 @@
       "command": "node",
       "args": ["${__dirname}/dist/index.js"],
       "env": {
+        "NOAA_CDO_TOKEN": "${user_config.noaa_cdo_token}",
         "MCP_TRANSPORT_TYPE": "stdio",
         "MCP_AUTH_MODE": "none",
-        "NODE_ENV": "production",
-        "NOAA_CDO_TOKEN": "${NOAA_CDO_TOKEN}"
+        "NODE_ENV": "production"
       }
     }
   },
@@ -24,12 +30,12 @@
   "tools_generated": true,
   "prompts_generated": true,
   "user_config": {
-    "NOAA_CDO_TOKEN": {
+    "noaa_cdo_token": {
       "type": "string",
       "title": "NOAA CDO API Token",
-      "description": "Obtain free at https://www.ncdc.noaa.gov/cdo-web/token",
+      "description": "Free API token from the NOAA CDO web service. Register at https://www.ncdc.noaa.gov/cdo-web/token.",
       "required": true,
-      "secret": true
+      "sensitive": true
     }
   }
 }
