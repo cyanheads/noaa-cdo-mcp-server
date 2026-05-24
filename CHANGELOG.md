@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.1.4](changelog/0.1.x/0.1.4.md) — 2026-05-23
+
+sync tagline across all surfaces — package.json, server.json, manifest.json, README, GitHub description
+
 ## [0.1.3](changelog/0.1.x/0.1.3.md) — 2026-05-24
 
 not-found guard for noaa_get_station, resource double-encoding fix, 1-based offset descriptions across 6 tools, metadata polish
