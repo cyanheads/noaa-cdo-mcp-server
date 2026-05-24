@@ -57,7 +57,8 @@ function buildParams(p: CdoListParams): URLSearchParams {
   appendParam(q, 'extent', p.extent);
   appendParam(q, 'units', p.units);
   if (p.limit !== undefined) appendParam(q, 'limit', p.limit);
-  if (p.offset !== undefined) appendParam(q, 'offset', p.offset);
+  // NOAA CDO API uses 1-based offset; convert 0-based client input (+1).
+  if (p.offset !== undefined) appendParam(q, 'offset', p.offset + 1);
   if (p.includemetadata !== undefined) appendParam(q, 'includemetadata', p.includemetadata);
   return q;
 }
