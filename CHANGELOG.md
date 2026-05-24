@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.1.5](changelog/0.1.x/0.1.5.md) — 2026-05-23
+
+metadata alignment — package.json scripts use bun, tsx removed from devDeps, .env.example restructured, .gitignore/.mcpbignore aligned, Dockerfile labels updated, server.json MCP_PUBLIC_URL added, manifest.json reformatted
+
 ## [0.1.4](changelog/0.1.x/0.1.4.md) — 2026-05-23
 
 sync tagline across all surfaces — package.json, server.json, manifest.json, README, GitHub description

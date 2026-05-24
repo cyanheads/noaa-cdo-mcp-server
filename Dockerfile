@@ -40,10 +40,10 @@ WORKDIR /usr/src/app
 ENV NODE_ENV=production
 
 # OCI image metadata (https://github.com/opencontainers/image-spec/blob/main/annotations.md)
-LABEL org.opencontainers.image.title="noaa-cdo-mcp-server"
-LABEL org.opencontainers.image.description="MCP server for NOAA Climate Data Online (CDO) API v2 — search stations, locations, datasets, and fetch historical weather observations."
-LABEL org.opencontainers.image.source="https://github.com/cyanheads/noaa-cdo-mcp-server"
+LABEL org.opencontainers.image.title="@cyanheads/noaa-cdo-mcp-server"
+LABEL org.opencontainers.image.description="Search NOAA CDO stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP."
 LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.source="https://github.com/cyanheads/noaa-cdo-mcp-server"
 
 # Copy dependency manifests
 COPY package.json bun.lock ./
