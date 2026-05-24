@@ -1,19 +1,19 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.cyanheads/noaa-cdo-mcp-server",
-  "description": "MCP server for NOAA Climate Data Online (CDO) API v2 — historical weather observations.",
+  "description": "Search NOAA CDO stations and datasets, fetch historical weather observations.",
   "repository": {
     "url": "https://github.com/cyanheads/noaa-cdo-mcp-server",
     "source": "github"
   },
-  "version": "0.1.3",
+  "version": "0.1.4",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@cyanheads/noaa-cdo-mcp-server",
       "runtimeHint": "bun",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "packageArguments": [
         {
           "type": "positional",
@@ -48,7 +48,7 @@
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@cyanheads/noaa-cdo-mcp-server",
       "runtimeHint": "bun",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "packageArguments": [
         {
           "type": "positional",
