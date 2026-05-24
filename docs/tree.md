@@ -1,10 +1,9 @@
 # noaa-cdo-mcp-server - Directory Structure
 
-Generated on: 2026-05-24 02:30:33
+Generated on: 2026-05-24 04:56:23
 
 ```text
 noaa-cdo-mcp-server/
-├── .claude/
 ├── .github/
 │   └── ISSUE_TEMPLATE/
 │       ├── bug_report.yml
