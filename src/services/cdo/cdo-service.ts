@@ -31,7 +31,7 @@ function appendParam(
   key: string,
   value: string | string[] | number | boolean | undefined,
 ): void {
-  if (value === undefined || value === null) return;
+  if (value == null) return;
   if (Array.isArray(value)) {
     for (const v of value) {
       if (v) params.append(key, v);
@@ -84,8 +84,8 @@ export class CdoService {
 
     return withRetry(
       async () => {
-        const qs = buildParams(params);
-        const url = `${this.baseUrl}/${path}${qs.toString() ? `?${qs.toString()}` : ''}`;
+        const qs = buildParams(params).toString();
+        const url = `${this.baseUrl}/${path}${qs ? `?${qs}` : ''}`;
         ctx.log.debug('CDO API request', { url });
 
         const controller = new AbortController();

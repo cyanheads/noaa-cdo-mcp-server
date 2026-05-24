@@ -145,8 +145,8 @@ export const noaaListDataTypes = tool('noaa_list_data_types', {
       id: dt.id,
       name: dt.name,
       ...(typeof dt.datacoverage === 'number' && { datacoverage: dt.datacoverage }),
-      ...(dt.mindate ? { mindate: dt.mindate } : {}),
-      ...(dt.maxdate ? { maxdate: dt.maxdate } : {}),
+      ...(dt.mindate && { mindate: dt.mindate }),
+      ...(dt.maxdate && { maxdate: dt.maxdate }),
     }));
 
     return {

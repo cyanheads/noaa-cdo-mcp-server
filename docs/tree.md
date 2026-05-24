@@ -1,6 +1,6 @@
 # noaa-cdo-mcp-server - Directory Structure
 
-Generated on: 2026-05-24 04:56:23
+Generated on: 2026-05-24 21:53:04
 
 ```text
 noaa-cdo-mcp-server/
@@ -77,6 +77,8 @@ noaa-cdo-mcp-server/
 │   ├── design-mcp-server/
 │   │   └── SKILL.md
 │   ├── field-test/
+│   │   └── SKILL.md
+│   ├── git-wrapup/
 │   │   └── SKILL.md
 │   ├── maintenance/
 │   │   └── SKILL.md

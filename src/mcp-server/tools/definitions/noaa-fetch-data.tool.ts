@@ -146,14 +146,14 @@ export const noaaFetchData = tool('noaa_fetch_data', {
     },
     {
       reason: 'date_range_exceeded',
-      code: JsonRpcErrorCode.InvalidParams,
+      code: JsonRpcErrorCode.ValidationError,
       when: 'Date range exceeds 1 year for sub-daily/daily datasets (GHCND, PRECIP_*, NORMAL_DLY, NORMAL_HLY) or 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN).',
       recovery:
         'Narrow the date range or split into multiple requests. For NORMAL_* datasets use startDate=2010-01-01 and endDate=2010-12-31.',
     },
     {
-      reason: 'invalid_params',
-      code: JsonRpcErrorCode.InvalidParams,
+      reason: 'validation_error',
+      code: JsonRpcErrorCode.ValidationError,
       when: 'Bad dataset ID, date format, or unknown station/location/datatype ID.',
       recovery:
         'Verify the datasetId, date format (YYYY-MM-DD), and all filter IDs. Use noaa_list_datasets, noaa_find_stations, and noaa_list_data_types to confirm valid IDs.',
@@ -214,7 +214,7 @@ export const noaaFetchData = tool('noaa_fetch_data', {
       datatype: rec.datatype,
       station: rec.station,
       value: rec.value,
-      ...(rec.attributes ? { attributes: rec.attributes } : {}),
+      ...(rec.attributes && { attributes: rec.attributes }),
     }));
 
     return {

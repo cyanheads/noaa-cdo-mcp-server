@@ -138,8 +138,8 @@ export const noaaFindLocations = tool('noaa_find_locations', {
       id: loc.id,
       name: loc.name,
       ...(typeof loc.datacoverage === 'number' && { datacoverage: loc.datacoverage }),
-      ...(loc.mindate ? { mindate: loc.mindate } : {}),
-      ...(loc.maxdate ? { maxdate: loc.maxdate } : {}),
+      ...(loc.mindate && { mindate: loc.mindate }),
+      ...(loc.maxdate && { maxdate: loc.maxdate }),
     }));
 
     return {

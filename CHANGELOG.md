@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.1.8](changelog/0.1.x/0.1.8.md) — 2026-05-24
+
+code simplification, mcp-ts-core ^0.9.7 → ^0.9.9, error code corrections
+
 ## [0.1.7](changelog/0.1.x/0.1.7.md) — 2026-05-24
 
 pagination offset fix and dead error contract cleanup

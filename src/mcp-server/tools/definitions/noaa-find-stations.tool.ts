@@ -173,9 +173,9 @@ export const noaaFindStations = tool('noaa_find_stations', {
       ...(typeof st.latitude === 'number' && { latitude: st.latitude }),
       ...(typeof st.longitude === 'number' && { longitude: st.longitude }),
       ...(typeof st.elevation === 'number' && { elevation: st.elevation }),
-      ...(st.elevationUnit ? { elevationUnit: st.elevationUnit } : {}),
-      ...(st.mindate ? { mindate: st.mindate } : {}),
-      ...(st.maxdate ? { maxdate: st.maxdate } : {}),
+      ...(st.elevationUnit && { elevationUnit: st.elevationUnit }),
+      ...(st.mindate && { mindate: st.mindate }),
+      ...(st.maxdate && { maxdate: st.maxdate }),
       ...(typeof st.datacoverage === 'number' && { datacoverage: st.datacoverage }),
     }));
 

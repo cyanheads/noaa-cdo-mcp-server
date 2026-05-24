@@ -100,8 +100,8 @@ export const noaaListDatasets = tool('noaa_list_datasets', {
       recovery: 'Wait a moment and retry; NOAA CDO may be temporarily unavailable.',
     },
     {
-      reason: 'invalid_params',
-      code: JsonRpcErrorCode.InvalidParams,
+      reason: 'validation_error',
+      code: JsonRpcErrorCode.ValidationError,
       when: 'Bad date format or unrecognized filter ID.',
       recovery: 'Check date format (YYYY-MM-DD) and verify filter IDs are valid CDO identifiers.',
     },
