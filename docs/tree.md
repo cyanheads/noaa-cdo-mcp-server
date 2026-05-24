@@ -1,6 +1,6 @@
 # noaa-cdo-mcp-server - Directory Structure
 
-Generated on: 2026-05-23 18:10:22
+Generated on: 2026-05-24 02:30:33
 
 ```text
 noaa-cdo-mcp-server/
@@ -143,6 +143,7 @@ noaa-cdo-mcp-server/
 ├── .mcpbignore
 ├── biome.json
 ├── bun.lock
+├── bunfig.toml
 ├── CHANGELOG.md
 ├── CLAUDE.md
 ├── devcheck.config.json

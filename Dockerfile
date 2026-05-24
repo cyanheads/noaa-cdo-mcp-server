@@ -38,7 +38,8 @@ ENV NODE_ENV=production
 
 # OCI image metadata (https://github.com/opencontainers/image-spec/blob/main/annotations.md)
 LABEL org.opencontainers.image.title="noaa-cdo-mcp-server"
-LABEL org.opencontainers.image.description=""
+LABEL org.opencontainers.image.description="MCP server for NOAA Climate Data Online (CDO) API v2 — search stations, locations, datasets, and fetch historical weather observations."
+LABEL org.opencontainers.image.source="https://github.com/cyanheads/noaa-cdo-mcp-server"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 # Copy dependency manifests
