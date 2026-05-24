@@ -122,7 +122,9 @@ export const noaaFindStations = tool('noaa_find_stations', {
           .object({
             count: z.number().describe('Total number of matching stations.'),
             limit: z.number().describe('Page size used for this response.'),
-            offset: z.number().describe('Zero-based starting index of this page.'),
+            offset: z
+              .number()
+              .describe('1-based starting index of this page as returned by the NOAA CDO API.'),
           })
           .describe('Pagination cursor fields for this response.'),
       })
