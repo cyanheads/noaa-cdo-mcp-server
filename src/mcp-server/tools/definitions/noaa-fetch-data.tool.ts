@@ -158,13 +158,6 @@ export const noaaFetchData = tool('noaa_fetch_data', {
       recovery:
         'Verify the datasetId, date format (YYYY-MM-DD), and all filter IDs. Use noaa_list_datasets, noaa_find_stations, and noaa_list_data_types to confirm valid IDs.',
     },
-    {
-      reason: 'no_results',
-      code: JsonRpcErrorCode.NotFound,
-      when: 'Valid query but no observations exist for the given filters and date range.',
-      recovery:
-        'Check that the station or location has data for the dataset and date range. Use noaa_get_station to verify coverage dates. Try broadening the date range or removing stationId/datatypeId filters.',
-    },
   ],
 
   async handler(input, ctx) {

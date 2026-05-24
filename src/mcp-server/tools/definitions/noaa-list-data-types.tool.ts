@@ -116,13 +116,6 @@ export const noaaListDataTypes = tool('noaa_list_data_types', {
       retryable: true,
       recovery: 'Wait a moment and retry; NOAA CDO may be temporarily unavailable.',
     },
-    {
-      reason: 'no_results',
-      code: JsonRpcErrorCode.NotFound,
-      when: 'Valid query but no data types matched the filters.',
-      recovery:
-        'Try a different datasetId or datacategoryId, or remove optional filters to list all data types.',
-    },
   ],
 
   async handler(input, ctx) {

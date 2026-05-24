@@ -110,13 +110,6 @@ export const noaaFindLocations = tool('noaa_find_locations', {
       retryable: true,
       recovery: 'Wait a moment and retry; NOAA CDO may be temporarily unavailable.',
     },
-    {
-      reason: 'no_results',
-      code: JsonRpcErrorCode.NotFound,
-      when: 'Valid query but no locations matched the filters.',
-      recovery:
-        'Try a different locationCategoryId, broaden the date range, or remove optional filters.',
-    },
   ],
 
   async handler(input, ctx) {

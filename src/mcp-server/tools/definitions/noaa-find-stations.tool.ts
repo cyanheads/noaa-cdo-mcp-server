@@ -140,13 +140,6 @@ export const noaaFindStations = tool('noaa_find_stations', {
       retryable: true,
       recovery: 'Wait a moment and retry; NOAA CDO may be temporarily unavailable.',
     },
-    {
-      reason: 'no_results',
-      code: JsonRpcErrorCode.NotFound,
-      when: 'Valid query but no stations matched the filters.',
-      recovery:
-        'Broaden the search by removing datasetId, datatypeId, or date range filters, or verify the locationId is correct.',
-    },
   ],
 
   async handler(input, ctx) {
