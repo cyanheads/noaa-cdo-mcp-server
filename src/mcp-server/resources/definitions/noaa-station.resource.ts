@@ -25,6 +25,6 @@ export const noaaStationResource = resource('noaa://stations/{stationId}', {
         { stationId: params.stationId },
       );
     }
-    return JSON.stringify(station, null, 2);
+    return station;
   },
 });

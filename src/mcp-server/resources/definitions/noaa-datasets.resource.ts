@@ -17,6 +17,6 @@ export const noaaDatasetsResource = resource('noaa://datasets', {
     const service = getCdoService();
     const response = await service.listDatasets({ limit: 1000 }, ctx);
     const datasets = response.results ?? [];
-    return JSON.stringify({ datasets }, null, 2);
+    return { datasets };
   },
 });
