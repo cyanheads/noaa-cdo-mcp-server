@@ -8,6 +8,9 @@ FROM oven/bun:1.3 AS build
 
 WORKDIR /usr/src/app
 
+# Install Node.js for tsx (build tooling requires real Node.js CJS resolution)
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm && rm -rf /var/lib/apt/lists/*
+
 # Copy dependency manifests for optimized layer caching
 COPY package.json bun.lock ./
 
@@ -17,8 +20,8 @@ RUN bun install --frozen-lockfile
 # Copy the rest of the source code
 COPY . .
 
-# Build the application
-RUN bun run build
+# Build the application (tsx requires Node.js; npm run delegates to node)
+RUN npm run build
 
 
 # ==============================================================================
