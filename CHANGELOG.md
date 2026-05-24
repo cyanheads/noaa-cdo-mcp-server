@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.1.7](changelog/0.1.x/0.1.7.md) — 2026-05-24
+
+pagination offset fix and dead error contract cleanup
+
 ## [0.1.6](changelog/0.1.x/0.1.6.md) — 2026-05-23
 
 hosted server endpoint — remotes block in server.json, public URL in README
