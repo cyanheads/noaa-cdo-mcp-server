@@ -1,0 +1,10 @@
+{
+  "@cyanheads/noaa-cdo-mcp-server": {
+    "command": "npx",
+    "args": ["-y", "@cyanheads/noaa-cdo-mcp-server"],
+    "env": {
+      "NOAA_CDO_TOKEN": "your-noaa-cdo-token",
+      "MCP_TRANSPORT_TYPE": "stdio"
+    }
+  }
+}

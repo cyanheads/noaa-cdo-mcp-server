@@ -33,6 +33,7 @@ Primary workflow: noaa_find_locations → noaa_find_stations → noaa_fetch_data
 Discovery: noaa_list_datasets → noaa_list_data_categories → noaa_list_data_types.
 Date range limits: daily datasets (GHCND etc.) max 1 year per request; monthly/annual (GSOM, GSOY) max 10 years.
 Always pass units=metric or units=standard to noaa_fetch_data — raw GHCND values are tenths-of-unit integers.`,
+  landing: { requireAuth: false },
   setup() {
     initCdoService();
   },
