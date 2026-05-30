@@ -83,6 +83,18 @@ export const noaaListDataCategories = tool('noaa_list_data_categories', {
       .describe('Pagination metadata. Present when the API returns it.'),
   }),
 
+  enrichment: {
+    totalCount: z
+      .number()
+      .describe('Total number of matching data categories before the page limit.'),
+    notice: z
+      .string()
+      .optional()
+      .describe(
+        'Guidance when no data categories matched — echoes applied filters and suggests how to broaden.',
+      ),
+  },
+
   errors: [
     {
       reason: 'service_unavailable',
@@ -115,8 +127,17 @@ export const noaaListDataCategories = tool('noaa_list_data_categories', {
       ctx,
     );
 
+    const results = response.results ?? [];
+    const totalCount = response.metadata?.resultset.count ?? results.length;
+    ctx.enrich.total(totalCount);
+    if (results.length === 0) {
+      ctx.enrich.notice(
+        'No data categories matched the applied filters. Try removing location, station, or date range filters to see all available categories.',
+      );
+    }
+
     return {
-      results: response.results ?? [],
+      results,
       metadata: response.metadata,
     };
   },

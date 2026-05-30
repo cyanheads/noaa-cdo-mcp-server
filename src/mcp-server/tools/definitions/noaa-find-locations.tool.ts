@@ -102,6 +102,16 @@ export const noaaFindLocations = tool('noaa_find_locations', {
       .describe('Pagination metadata. Present when the API returns it.'),
   }),
 
+  enrichment: {
+    totalCount: z.number().describe('Total number of matching locations before the page limit.'),
+    notice: z
+      .string()
+      .optional()
+      .describe(
+        'Guidance when no locations matched — echoes applied filters and suggests how to broaden.',
+      ),
+  },
+
   errors: [
     {
       reason: 'service_unavailable',
@@ -141,6 +151,18 @@ export const noaaFindLocations = tool('noaa_find_locations', {
       ...(loc.mindate && { mindate: loc.mindate }),
       ...(loc.maxdate && { maxdate: loc.maxdate }),
     }));
+
+    const totalCount = response.metadata?.resultset.count ?? results.length;
+    ctx.enrich.total(totalCount);
+    if (results.length === 0) {
+      const filterHints: string[] = [];
+      if (input.locationCategoryId) filterHints.push(`category="${input.locationCategoryId}"`);
+      if (input.datasetId) filterHints.push(`datasetId="${input.datasetId}"`);
+      const filterStr = filterHints.length > 0 ? ` with ${filterHints.join(', ')}` : '';
+      ctx.enrich.notice(
+        `No locations matched${filterStr}. Try a different locationCategoryId (e.g., ST, CITY, CNTRY) or remove date range filters.`,
+      );
+    }
 
     return {
       results,

@@ -91,6 +91,16 @@ export const noaaListDatasets = tool('noaa_list_datasets', {
       .describe('Pagination metadata. Present when the API returns it.'),
   }),
 
+  enrichment: {
+    totalCount: z.number().describe('Total number of matching datasets before the page limit.'),
+    notice: z
+      .string()
+      .optional()
+      .describe(
+        'Guidance when no datasets matched — echoes applied filters and suggests how to broaden.',
+      ),
+  },
+
   errors: [
     {
       reason: 'service_unavailable',
@@ -130,8 +140,17 @@ export const noaaListDatasets = tool('noaa_list_datasets', {
       ctx,
     );
 
+    const results = response.results ?? [];
+    const totalCount = response.metadata?.resultset.count ?? results.length;
+    ctx.enrich.total(totalCount);
+    if (results.length === 0) {
+      ctx.enrich.notice(
+        'No datasets matched the applied filters. Try removing datatypeId, locationId, or stationId filters, or broaden the date range.',
+      );
+    }
+
     return {
-      results: response.results ?? [],
+      results,
       metadata: response.metadata,
     };
   },

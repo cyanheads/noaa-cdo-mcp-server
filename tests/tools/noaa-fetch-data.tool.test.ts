@@ -3,7 +3,7 @@
  * @module tests/tools/noaa-fetch-data.tool.test
  */
 
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaFetchData } from '@/mcp-server/tools/definitions/noaa-fetch-data.tool.js';
 
@@ -50,6 +50,33 @@ describe('noaaFetchData', () => {
       datatype: 'TMAX',
       value: 22,
     });
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.totalCount).toBe(2);
+    expect(typeof enrichment.effectiveQuery).toBe('string');
+    expect(enrichment.effectiveQuery as string).toContain('GHCND');
+    expect(enrichment.effectiveQuery as string).toContain('metric');
+    expect(enrichment).not.toHaveProperty('notice');
+  });
+
+  it('enriches with notice when no records returned', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      fetchData: vi.fn().mockResolvedValue({
+        results: [],
+        metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
+      }),
+    } as unknown as ReturnType<typeof getCdoService>);
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+    });
+    await noaaFetchData.handler(input, ctx);
+
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.totalCount).toBe(0);
+    expect(typeof enrichment.notice).toBe('string');
+    expect(enrichment.notice as string).toContain('No observation records');
   });
 
   it('throws date_range_exceeded for GHCND with >365-day range', async () => {

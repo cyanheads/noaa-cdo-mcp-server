@@ -3,7 +3,7 @@
  * @module tests/tools/noaa-list-data-categories.tool.test
  */
 
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaListDataCategories } from '@/mcp-server/tools/definitions/noaa-list-data-categories.tool.js';
 
@@ -35,6 +35,8 @@ describe('noaaListDataCategories', () => {
 
     expect(result.results).toHaveLength(2);
     expect(result.results[0]).toMatchObject({ id: 'TEMP', name: 'Air Temperature' });
+    expect(getEnrichment(ctx)).toMatchObject({ totalCount: 2 });
+    expect(getEnrichment(ctx)).not.toHaveProperty('notice');
   });
 
   it('returns empty array gracefully when API returns no results', async () => {
@@ -47,6 +49,10 @@ describe('noaaListDataCategories', () => {
     const result = await noaaListDataCategories.handler(input, ctx);
 
     expect(result.results).toEqual([]);
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.totalCount).toBe(0);
+    expect(typeof enrichment.notice).toBe('string');
+    expect(enrichment.notice as string).toContain('No data categories matched');
   });
 
   it('formats output listing category IDs and names', () => {

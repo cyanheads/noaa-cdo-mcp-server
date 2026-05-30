@@ -3,7 +3,7 @@
  * @module tests/tools/noaa-list-data-types.tool.test
  */
 
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaListDataTypes } from '@/mcp-server/tools/definitions/noaa-list-data-types.tool.js';
 
@@ -46,6 +46,25 @@ describe('noaaListDataTypes', () => {
       datacoverage: 0.99,
     });
     expect(result.results[0].mindate).toBe('1763-01-01');
+    expect(getEnrichment(ctx)).toMatchObject({ totalCount: 2 });
+    expect(getEnrichment(ctx)).not.toHaveProperty('notice');
+  });
+
+  it('enriches with notice when no data types matched', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      listDataTypes: vi.fn().mockResolvedValue({
+        results: [],
+        metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
+      }),
+    } as unknown as ReturnType<typeof getCdoService>);
+    const ctx = createMockContext();
+    const input = noaaListDataTypes.input.parse({ datasetId: 'UNKNOWN' });
+    await noaaListDataTypes.handler(input, ctx);
+
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.totalCount).toBe(0);
+    expect(typeof enrichment.notice).toBe('string');
+    expect(enrichment.notice as string).toContain('No data types matched');
   });
 
   it('preserves sparse upstream payloads — omits optional fields when absent', async () => {

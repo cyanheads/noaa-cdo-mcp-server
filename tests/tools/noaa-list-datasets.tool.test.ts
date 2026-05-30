@@ -3,7 +3,7 @@
  * @module tests/tools/noaa-list-datasets.tool.test
  */
 
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaListDatasets } from '@/mcp-server/tools/definitions/noaa-list-datasets.tool.js';
 
@@ -55,6 +55,8 @@ describe('noaaListDatasets', () => {
       datacoverage: 1,
     });
     expect(result.metadata?.resultset.count).toBe(2);
+    expect(getEnrichment(ctx)).toMatchObject({ totalCount: 2 });
+    expect(getEnrichment(ctx)).not.toHaveProperty('notice');
   });
 
   it('returns empty results gracefully when API returns no data', async () => {
@@ -70,6 +72,10 @@ describe('noaaListDatasets', () => {
 
     expect(result.results).toEqual([]);
     expect(result.metadata?.resultset.count).toBe(0);
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.totalCount).toBe(0);
+    expect(typeof enrichment.notice).toBe('string');
+    expect(enrichment.notice as string).toContain('No datasets matched');
   });
 
   it('passes filter params to the service', async () => {

@@ -132,6 +132,16 @@ export const noaaFindStations = tool('noaa_find_stations', {
       .describe('Pagination metadata. Present when the API returns it.'),
   }),
 
+  enrichment: {
+    totalCount: z.number().describe('Total number of matching stations before the page limit.'),
+    notice: z
+      .string()
+      .optional()
+      .describe(
+        'Guidance when no stations matched — echoes applied filters and suggests how to broaden.',
+      ),
+  },
+
   errors: [
     {
       reason: 'service_unavailable',
@@ -178,6 +188,20 @@ export const noaaFindStations = tool('noaa_find_stations', {
       ...(st.maxdate && { maxdate: st.maxdate }),
       ...(typeof st.datacoverage === 'number' && { datacoverage: st.datacoverage }),
     }));
+
+    const totalCount = response.metadata?.resultset.count ?? results.length;
+    ctx.enrich.total(totalCount);
+    if (results.length === 0) {
+      const filterHints: string[] = [];
+      if (input.locationId) filterHints.push(`locationId="${input.locationId}"`);
+      if (input.datasetId) filterHints.push(`datasetId="${input.datasetId}"`);
+      if (input.datatypeId?.length) filterHints.push(`datatypeId=[${input.datatypeId.join(', ')}]`);
+      if (input.extent) filterHints.push(`extent="${input.extent}"`);
+      const filterStr = filterHints.length > 0 ? ` with ${filterHints.join(', ')}` : '';
+      ctx.enrich.notice(
+        `No stations matched${filterStr}. Try broadening the bounding box, removing datatypeId filters, or using a different locationId.`,
+      );
+    }
 
     return {
       results,

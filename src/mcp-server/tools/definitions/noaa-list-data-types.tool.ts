@@ -108,6 +108,16 @@ export const noaaListDataTypes = tool('noaa_list_data_types', {
       .describe('Pagination metadata. Present when the API returns it.'),
   }),
 
+  enrichment: {
+    totalCount: z.number().describe('Total number of matching data types before the page limit.'),
+    notice: z
+      .string()
+      .optional()
+      .describe(
+        'Guidance when no data types matched — echoes applied filters and suggests how to broaden.',
+      ),
+  },
+
   errors: [
     {
       reason: 'service_unavailable',
@@ -148,6 +158,18 @@ export const noaaListDataTypes = tool('noaa_list_data_types', {
       ...(dt.mindate && { mindate: dt.mindate }),
       ...(dt.maxdate && { maxdate: dt.maxdate }),
     }));
+
+    const totalCount = response.metadata?.resultset.count ?? results.length;
+    ctx.enrich.total(totalCount);
+    if (results.length === 0) {
+      const filterHints: string[] = [];
+      if (input.datasetId) filterHints.push(`datasetId="${input.datasetId}"`);
+      if (input.datacategoryId) filterHints.push(`datacategoryId="${input.datacategoryId}"`);
+      const filterStr = filterHints.length > 0 ? ` with ${filterHints.join(', ')}` : '';
+      ctx.enrich.notice(
+        `No data types matched${filterStr}. Try a different datasetId (e.g., GHCND, GSOM) or datacategoryId (e.g., TEMP, PRCP, WIND).`,
+      );
+    }
 
     return {
       results,

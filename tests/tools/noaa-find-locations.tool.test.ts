@@ -3,7 +3,7 @@
  * @module tests/tools/noaa-find-locations.tool.test
  */
 
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaFindLocations } from '@/mcp-server/tools/definitions/noaa-find-locations.tool.js';
 
@@ -41,6 +41,25 @@ describe('noaaFindLocations', () => {
 
     expect(result.results).toHaveLength(2);
     expect(result.results[0]).toMatchObject({ id: 'FIPS:37', name: 'North Carolina' });
+    expect(getEnrichment(ctx)).toMatchObject({ totalCount: 2 });
+    expect(getEnrichment(ctx)).not.toHaveProperty('notice');
+  });
+
+  it('enriches with notice when no locations matched', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      findLocations: vi.fn().mockResolvedValue({
+        results: [],
+        metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
+      }),
+    } as unknown as ReturnType<typeof getCdoService>);
+    const ctx = createMockContext();
+    const input = noaaFindLocations.input.parse({ locationCategoryId: 'ZIP' });
+    await noaaFindLocations.handler(input, ctx);
+
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.totalCount).toBe(0);
+    expect(typeof enrichment.notice).toBe('string');
+    expect(enrichment.notice as string).toContain('No locations matched');
   });
 
   it('passes categoryId and pagination params to service', async () => {

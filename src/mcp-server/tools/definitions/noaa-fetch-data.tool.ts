@@ -136,6 +136,23 @@ export const noaaFetchData = tool('noaa_fetch_data', {
       .describe('Pagination metadata. Present when includemetadata=true.'),
   }),
 
+  enrichment: {
+    totalCount: z
+      .number()
+      .describe('Total number of matching observation records before the page limit.'),
+    effectiveQuery: z
+      .string()
+      .describe(
+        'Summary of the effective query: dataset, date range, units, and any station/location/datatype filters applied.',
+      ),
+    notice: z
+      .string()
+      .optional()
+      .describe(
+        'Guidance when no records were returned — echoes query parameters and suggests how to broaden.',
+      ),
+  },
+
   errors: [
     {
       reason: 'service_unavailable',
@@ -216,6 +233,27 @@ export const noaaFetchData = tool('noaa_fetch_data', {
       value: rec.value,
       ...(rec.attributes && { attributes: rec.attributes }),
     }));
+
+    const totalCount = response.metadata?.resultset.count ?? results.length;
+    ctx.enrich.total(totalCount);
+
+    // Build effective-query summary for the agent
+    const queryParts: string[] = [
+      `dataset=${input.datasetId}`,
+      `${input.startDate}–${input.endDate}`,
+    ];
+    if (input.units) queryParts.push(`units=${input.units}`);
+    if (input.stationId?.length) queryParts.push(`stations=[${input.stationId.join(', ')}]`);
+    if (input.locationId?.length) queryParts.push(`locations=[${input.locationId.join(', ')}]`);
+    if (input.datatypeId?.length) queryParts.push(`datatypes=[${input.datatypeId.join(', ')}]`);
+    const effectiveQuery = queryParts.join(', ');
+    ctx.enrich.echo(effectiveQuery);
+
+    if (results.length === 0) {
+      ctx.enrich.notice(
+        `No observation records found for ${effectiveQuery}. Verify the station has data for this dataset and date range using noaa_find_stations, or try a different datatypeId.`,
+      );
+    }
 
     return {
       results,

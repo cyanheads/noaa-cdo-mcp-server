@@ -3,7 +3,7 @@
  * @module tests/tools/noaa-find-stations.tool.test
  */
 
-import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaFindStations } from '@/mcp-server/tools/definitions/noaa-find-stations.tool.js';
 
@@ -52,6 +52,25 @@ describe('noaaFindStations', () => {
     expect(yakima.latitude).toBe(46.6039);
     expect(yakima.elevation).toBe(324.6);
     expect(yakima.datacoverage).toBe(0.99);
+    expect(getEnrichment(ctx)).toMatchObject({ totalCount: 2 });
+    expect(getEnrichment(ctx)).not.toHaveProperty('notice');
+  });
+
+  it('enriches with notice when no stations matched', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      findStations: vi.fn().mockResolvedValue({
+        results: [],
+        metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
+      }),
+    } as unknown as ReturnType<typeof getCdoService>);
+    const ctx = createMockContext();
+    const input = noaaFindStations.input.parse({ locationId: 'FIPS:99', datasetId: 'GHCND' });
+    await noaaFindStations.handler(input, ctx);
+
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.totalCount).toBe(0);
+    expect(typeof enrichment.notice).toBe('string');
+    expect(enrichment.notice as string).toContain('No stations matched');
   });
 
   it('preserves sparse upstream payloads — omits optional coordinate fields', async () => {
