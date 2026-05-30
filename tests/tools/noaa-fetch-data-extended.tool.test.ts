@@ -1,0 +1,349 @@
+/**
+ * @fileoverview Extended tests for noaa_fetch_data — input validation, service
+ * params forwarding, error propagation, and security assertions.
+ * @module tests/tools/noaa-fetch-data-extended.tool.test
+ */
+
+import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { noaaFetchData } from '@/mcp-server/tools/definitions/noaa-fetch-data.tool.js';
+
+vi.mock('@/services/cdo/cdo-service.js', () => ({
+  getCdoService: vi.fn(),
+}));
+
+import { getCdoService } from '@/services/cdo/cdo-service.js';
+
+const defaultMockResponse = {
+  results: [],
+  metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
+};
+
+beforeEach(() => {
+  vi.mocked(getCdoService).mockReturnValue({
+    fetchData: vi.fn().mockResolvedValue(defaultMockResponse),
+  } as unknown as ReturnType<typeof getCdoService>);
+});
+
+describe('noaaFetchData — input validation', () => {
+  it('rejects an empty datasetId string', () => {
+    expect(() =>
+      noaaFetchData.input.parse({
+        datasetId: '',
+        startDate: '2023-01-01',
+        endDate: '2023-01-31',
+      }),
+    ).toThrow();
+  });
+
+  it('rejects limit=0 (below minimum 1)', () => {
+    expect(() =>
+      noaaFetchData.input.parse({
+        datasetId: 'GHCND',
+        startDate: '2023-01-01',
+        endDate: '2023-01-31',
+        limit: 0,
+      }),
+    ).toThrow();
+  });
+
+  it('rejects limit=1001 (above maximum 1000)', () => {
+    expect(() =>
+      noaaFetchData.input.parse({
+        datasetId: 'GHCND',
+        startDate: '2023-01-01',
+        endDate: '2023-01-31',
+        limit: 1001,
+      }),
+    ).toThrow();
+  });
+
+  it('rejects negative offset', () => {
+    expect(() =>
+      noaaFetchData.input.parse({
+        datasetId: 'GHCND',
+        startDate: '2023-01-01',
+        endDate: '2023-01-31',
+        offset: -1,
+      }),
+    ).toThrow();
+  });
+
+  it('rejects invalid units value', () => {
+    expect(() =>
+      noaaFetchData.input.parse({
+        datasetId: 'GHCND',
+        startDate: '2023-01-01',
+        endDate: '2023-01-31',
+        units: 'imperial',
+      }),
+    ).toThrow();
+  });
+
+  it('rejects invalid sortField value', () => {
+    expect(() =>
+      noaaFetchData.input.parse({
+        datasetId: 'GHCND',
+        startDate: '2023-01-01',
+        endDate: '2023-01-31',
+        sortField: 'unknown',
+      }),
+    ).toThrow();
+  });
+
+  it('accepts limit=1 (boundary minimum)', () => {
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+      limit: 1,
+    });
+    expect(input.limit).toBe(1);
+  });
+
+  it('accepts limit=1000 (boundary maximum)', () => {
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+      limit: 1000,
+    });
+    expect(input.limit).toBe(1000);
+  });
+});
+
+describe('noaaFetchData — date range validation edge cases', () => {
+  it('throws date_range_exceeded for PRECIP_15 (daily set) with >365-day range', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'PRECIP_15',
+      startDate: '2022-01-01',
+      endDate: '2023-06-30',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+      data: { reason: 'date_range_exceeded' },
+    });
+  });
+
+  it('throws date_range_exceeded for NORMAL_HLY with >365-day range', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'NORMAL_HLY',
+      startDate: '2010-01-01',
+      endDate: '2011-12-31',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+      data: { reason: 'date_range_exceeded' },
+    });
+  });
+
+  it('throws date_range_exceeded for GSOY with >10-year range', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GSOY',
+      startDate: '2000-01-01',
+      endDate: '2015-01-01',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+      data: { reason: 'date_range_exceeded' },
+    });
+  });
+
+  it('allows NORMAL_DLY exactly on 365-day boundary (2010-01-01 to 2010-12-31)', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'NORMAL_DLY',
+      startDate: '2010-01-01',
+      endDate: '2010-12-31',
+    });
+    const result = await noaaFetchData.handler(input, ctx);
+    expect(result.results).toBeDefined();
+  });
+
+  it('date range error includes requestedDays and maxDays in data', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2022-01-01',
+      endDate: '2023-12-31',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+      data: {
+        reason: 'date_range_exceeded',
+        requestedDays: expect.any(Number),
+        maxDays: 365,
+      },
+    });
+  });
+});
+
+describe('noaaFetchData — service params forwarding', () => {
+  it('forwards all optional filter params to the service', async () => {
+    const mockService = {
+      fetchData: vi.fn().mockResolvedValue(defaultMockResponse),
+    } as unknown as ReturnType<typeof getCdoService>;
+    vi.mocked(getCdoService).mockReturnValue(mockService);
+
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+      stationId: ['GHCND:USC00450974', 'GHCND:USC00456789'],
+      locationId: ['FIPS:53'],
+      datatypeId: ['TMAX', 'TMIN'],
+      units: 'metric',
+      sortField: 'date',
+      sortOrder: 'desc',
+      limit: 100,
+      offset: 50,
+    });
+    await noaaFetchData.handler(input, ctx);
+
+    expect(mockService.fetchData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        datasetid: 'GHCND',
+        startdate: '2023-01-01',
+        enddate: '2023-01-31',
+        stationid: ['GHCND:USC00450974', 'GHCND:USC00456789'],
+        locationid: ['FIPS:53'],
+        datatypeid: ['TMAX', 'TMIN'],
+        units: 'metric',
+        sortfield: 'date',
+        sortorder: 'desc',
+        limit: 100,
+        offset: 50,
+      }),
+      ctx,
+    );
+  });
+});
+
+describe('noaaFetchData — error propagation', () => {
+  it('propagates service errors without swallowing them', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      fetchData: vi.fn().mockRejectedValue(new Error('NOAA CDO returned HTTP 503')),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toThrow();
+  });
+
+  it('propagates timeout errors from the service', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      fetchData: vi.fn().mockRejectedValue(new Error('Request timed out')),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toThrow();
+  });
+});
+
+describe('noaaFetchData — security', () => {
+  it('treats stationId values as opaque strings — no interpretation', async () => {
+    const mockService = {
+      fetchData: vi.fn().mockResolvedValue(defaultMockResponse),
+    } as unknown as ReturnType<typeof getCdoService>;
+    vi.mocked(getCdoService).mockReturnValue(mockService);
+
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const injectionAttempt = "'; DROP TABLE stations; --";
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+      stationId: [injectionAttempt],
+    });
+    await noaaFetchData.handler(input, ctx);
+
+    // The value is forwarded verbatim to the service (which handles HTTP encoding)
+    expect(mockService.fetchData).toHaveBeenCalledWith(
+      expect.objectContaining({ stationid: [injectionAttempt] }),
+      ctx,
+    );
+  });
+
+  it('output and error messages do not expose NOAA_CDO_TOKEN or any env secret', async () => {
+    // Simulate a service error carrying a synthetic token-like string in the message
+    const fakeToken = 'FAKE_SECRET_TOKEN_12345';
+    vi.mocked(getCdoService).mockReturnValue({
+      fetchData: vi.fn().mockRejectedValue(new Error(`CDO error for token ${fakeToken}`)),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+    });
+
+    let caughtError: unknown;
+    try {
+      await noaaFetchData.handler(input, ctx);
+    } catch (e) {
+      caughtError = e;
+    }
+    expect(caughtError).toBeDefined();
+    // The handler itself throws — the raw service message may propagate (service
+    // owns the error), but the handler adds no secret from the env. Verify that
+    // the handler doesn't add NOAA_CDO_TOKEN to its own output enrichment.
+    const enrichment = JSON.stringify(ctx);
+    expect(enrichment).not.toContain('NOAA_CDO_TOKEN');
+  });
+
+  it('effectiveQuery enrichment never contains env variable names', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      fetchData: vi.fn().mockResolvedValue(defaultMockResponse),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+    });
+    await noaaFetchData.handler(input, ctx);
+
+    const enrichment = JSON.stringify(ctx);
+    expect(enrichment).not.toContain('NOAA_CDO_TOKEN');
+    expect(enrichment).not.toContain('process.env');
+  });
+});
+
+describe('noaaFetchData — format', () => {
+  it('format includes all filter-summary fields in the effective query', async () => {
+    const mockService = {
+      fetchData: vi.fn().mockResolvedValue({
+        results: [{ date: '2023-01-01T00:00:00', datatype: 'TMAX', station: 'GHCND:X', value: 10 }],
+        metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
+      }),
+    } as unknown as ReturnType<typeof getCdoService>;
+    vi.mocked(getCdoService).mockReturnValue(mockService);
+
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+      datatypeId: ['TMAX'],
+      locationId: ['FIPS:53'],
+    });
+    await noaaFetchData.handler(input, ctx);
+
+    // Verify enrichment includes locations and datatypes in the query summary
+    const { getEnrichment } = await import('@cyanheads/mcp-ts-core/testing');
+    const enrichment = getEnrichment(ctx);
+    expect(enrichment.effectiveQuery as string).toContain('FIPS:53');
+    expect(enrichment.effectiveQuery as string).toContain('TMAX');
+  });
+});

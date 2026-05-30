@@ -1,0 +1,124 @@
+/**
+ * @fileoverview Extended tests for noaa_list_data_types — params forwarding,
+ * input validation, error propagation, and security.
+ * @module tests/tools/noaa-list-data-types-extended.tool.test
+ */
+
+import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { noaaListDataTypes } from '@/mcp-server/tools/definitions/noaa-list-data-types.tool.js';
+
+vi.mock('@/services/cdo/cdo-service.js', () => ({
+  getCdoService: vi.fn(),
+}));
+
+import { getCdoService } from '@/services/cdo/cdo-service.js';
+
+const mockResponse = {
+  results: [
+    {
+      id: 'TMAX',
+      name: 'Maximum temperature',
+      datacoverage: 0.99,
+      mindate: '1763-01-01',
+      maxdate: '2024-12-31',
+    },
+    { id: 'PRCP', name: 'Precipitation' },
+  ],
+  metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
+};
+
+beforeEach(() => {
+  vi.mocked(getCdoService).mockReturnValue({
+    listDataTypes: vi.fn().mockResolvedValue(mockResponse),
+  } as unknown as ReturnType<typeof getCdoService>);
+});
+
+describe('noaaListDataTypes — input validation', () => {
+  it('rejects limit=0', () => {
+    expect(() => noaaListDataTypes.input.parse({ limit: 0 })).toThrow();
+  });
+
+  it('rejects limit=1001', () => {
+    expect(() => noaaListDataTypes.input.parse({ limit: 1001 })).toThrow();
+  });
+
+  it('rejects negative offset', () => {
+    expect(() => noaaListDataTypes.input.parse({ offset: -1 })).toThrow();
+  });
+
+  it('rejects invalid sortField', () => {
+    expect(() => noaaListDataTypes.input.parse({ sortField: 'city' })).toThrow();
+  });
+});
+
+describe('noaaListDataTypes — params forwarding', () => {
+  it('forwards all filter params to the service', async () => {
+    const mockService = {
+      listDataTypes: vi.fn().mockResolvedValue(mockResponse),
+    } as unknown as ReturnType<typeof getCdoService>;
+    vi.mocked(getCdoService).mockReturnValue(mockService);
+
+    const ctx = createMockContext();
+    const input = noaaListDataTypes.input.parse({
+      datasetId: 'GHCND',
+      locationId: 'FIPS:37',
+      stationId: 'GHCND:USC00450974',
+      datacategoryId: 'TEMP',
+      startDate: '2020-01-01',
+      endDate: '2023-12-31',
+      sortField: 'id',
+      sortOrder: 'asc',
+      limit: 50,
+      offset: 0,
+    });
+    await noaaListDataTypes.handler(input, ctx);
+
+    expect(mockService.listDataTypes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        datasetid: 'GHCND',
+        locationid: 'FIPS:37',
+        stationid: 'GHCND:USC00450974',
+        datacategoryid: 'TEMP',
+        startdate: '2020-01-01',
+        enddate: '2023-12-31',
+        sortfield: 'id',
+        sortorder: 'asc',
+        limit: 50,
+        offset: 0,
+      }),
+      ctx,
+    );
+  });
+});
+
+describe('noaaListDataTypes — error propagation', () => {
+  it('propagates service errors', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      listDataTypes: vi.fn().mockRejectedValue(new Error('CDO API error')),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext();
+    const input = noaaListDataTypes.input.parse({ datasetId: 'GHCND' });
+    await expect(noaaListDataTypes.handler(input, ctx)).rejects.toThrow();
+  });
+});
+
+describe('noaaListDataTypes — security', () => {
+  it('injection attempts in datasetId are forwarded as opaque strings', async () => {
+    const mockService = {
+      listDataTypes: vi.fn().mockResolvedValue(mockResponse),
+    } as unknown as ReturnType<typeof getCdoService>;
+    vi.mocked(getCdoService).mockReturnValue(mockService);
+
+    const ctx = createMockContext();
+    const injection = 'GHCND; DROP TABLE datatypes; --';
+    const input = noaaListDataTypes.input.parse({ datasetId: injection });
+    await noaaListDataTypes.handler(input, ctx);
+
+    expect(mockService.listDataTypes).toHaveBeenCalledWith(
+      expect.objectContaining({ datasetid: injection }),
+      ctx,
+    );
+  });
+});

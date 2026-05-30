@@ -1,0 +1,224 @@
+/**
+ * @fileoverview Extended tests for noaa_find_stations — params forwarding,
+ * bounding-box filtering, format output, and security.
+ * @module tests/tools/noaa-find-stations-extended.tool.test
+ */
+
+import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { noaaFindStations } from '@/mcp-server/tools/definitions/noaa-find-stations.tool.js';
+
+vi.mock('@/services/cdo/cdo-service.js', () => ({
+  getCdoService: vi.fn(),
+}));
+
+import { getCdoService } from '@/services/cdo/cdo-service.js';
+
+const defaultStation = {
+  id: 'GHCND:USC00450974',
+  name: 'YAKIMA WA US',
+  latitude: 46.6039,
+  longitude: -120.5097,
+  elevation: 324.6,
+  elevationUnit: 'Meters',
+  mindate: '1948-01-01',
+  maxdate: '2024-12-31',
+  datacoverage: 0.99,
+};
+
+beforeEach(() => {
+  vi.mocked(getCdoService).mockReturnValue({
+    findStations: vi.fn().mockResolvedValue({
+      results: [defaultStation],
+      metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
+    }),
+  } as unknown as ReturnType<typeof getCdoService>);
+});
+
+describe('noaaFindStations — input validation', () => {
+  it('rejects limit=0', () => {
+    expect(() => noaaFindStations.input.parse({ limit: 0 })).toThrow();
+  });
+
+  it('rejects limit=1001', () => {
+    expect(() => noaaFindStations.input.parse({ limit: 1001 })).toThrow();
+  });
+
+  it('rejects negative offset', () => {
+    expect(() => noaaFindStations.input.parse({ offset: -1 })).toThrow();
+  });
+
+  it('rejects invalid sortField value', () => {
+    expect(() => noaaFindStations.input.parse({ sortField: 'city' })).toThrow();
+  });
+});
+
+describe('noaaFindStations — params forwarding', () => {
+  it('forwards extent (bounding box) to the service', async () => {
+    const mockService = {
+      findStations: vi.fn().mockResolvedValue({
+        results: [],
+        metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
+      }),
+    } as unknown as ReturnType<typeof getCdoService>;
+    vi.mocked(getCdoService).mockReturnValue(mockService);
+
+    const ctx = createMockContext();
+    const input = noaaFindStations.input.parse({
+      extent: '47.5,-122.4,47.7,-122.1',
+    });
+    await noaaFindStations.handler(input, ctx);
+
+    expect(mockService.findStations).toHaveBeenCalledWith(
+      expect.objectContaining({ extent: '47.5,-122.4,47.7,-122.1' }),
+      ctx,
+    );
+  });
+
+  it('forwards multiple datatypeIds to the service', async () => {
+    const mockService = {
+      findStations: vi.fn().mockResolvedValue({
+        results: [defaultStation],
+        metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
+      }),
+    } as unknown as ReturnType<typeof getCdoService>;
+    vi.mocked(getCdoService).mockReturnValue(mockService);
+
+    const ctx = createMockContext();
+    const input = noaaFindStations.input.parse({
+      datatypeId: ['TMAX', 'TMIN', 'PRCP'],
+    });
+    await noaaFindStations.handler(input, ctx);
+
+    expect(mockService.findStations).toHaveBeenCalledWith(
+      expect.objectContaining({ datatypeid: ['TMAX', 'TMIN', 'PRCP'] }),
+      ctx,
+    );
+  });
+
+  it('forwards all optional filter params', async () => {
+    const mockService = {
+      findStations: vi.fn().mockResolvedValue({
+        results: [],
+        metadata: { resultset: { count: 0, limit: 10, offset: 25 } },
+      }),
+    } as unknown as ReturnType<typeof getCdoService>;
+    vi.mocked(getCdoService).mockReturnValue(mockService);
+
+    const ctx = createMockContext();
+    const input = noaaFindStations.input.parse({
+      locationId: 'FIPS:53',
+      datasetId: 'GHCND',
+      datacategoryId: 'TEMP',
+      startDate: '2020-01-01',
+      endDate: '2023-12-31',
+      sortField: 'name',
+      sortOrder: 'asc',
+      limit: 10,
+      offset: 25,
+    });
+    await noaaFindStations.handler(input, ctx);
+
+    expect(mockService.findStations).toHaveBeenCalledWith(
+      expect.objectContaining({
+        locationid: 'FIPS:53',
+        datasetid: 'GHCND',
+        datacategoryid: 'TEMP',
+        startdate: '2020-01-01',
+        enddate: '2023-12-31',
+        sortfield: 'name',
+        sortorder: 'asc',
+        limit: 10,
+        offset: 25,
+      }),
+      ctx,
+    );
+  });
+});
+
+describe('noaaFindStations — notice message with filters', () => {
+  it('notice includes applied filter context when no stations matched', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      findStations: vi.fn().mockResolvedValue({
+        results: [],
+        metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
+      }),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext();
+    const input = noaaFindStations.input.parse({
+      locationId: 'FIPS:99',
+      datasetId: 'GHCND',
+      datatypeId: ['SNOW'],
+      extent: '10,20,30,40',
+    });
+    await noaaFindStations.handler(input, ctx);
+
+    const enrichment = getEnrichment(ctx);
+    expect(typeof enrichment.notice).toBe('string');
+    const notice = enrichment.notice as string;
+    // Notice should reference at least some of the applied filters
+    expect(notice).toMatch(/FIPS:99|GHCND|SNOW|10,20,30,40/);
+  });
+});
+
+describe('noaaFindStations — format output', () => {
+  it('formats stations with no coordinates gracefully', () => {
+    const blocks = noaaFindStations.format!({
+      results: [{ id: 'GHCND:SPARSE', name: 'Sparse Station' }],
+      metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
+    });
+    const text = blocks[0].text;
+    expect(text).toContain('GHCND:SPARSE');
+    expect(text).toContain('Sparse Station');
+    // No coordinate line since lat/lon absent
+    expect(text).not.toContain('Coords/Elevation:');
+  });
+
+  it('formats empty station list with fallback message', () => {
+    const blocks = noaaFindStations.format!({
+      results: [],
+      metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
+    });
+    expect(blocks[0].text).toContain('No stations');
+  });
+
+  it('format includes data coverage percentage', () => {
+    const blocks = noaaFindStations.format!({
+      results: [defaultStation],
+      metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
+    });
+    expect(blocks[0].text).toContain('99%');
+  });
+
+  it('format includes data range when both mindate and maxdate are present', () => {
+    const blocks = noaaFindStations.format!({
+      results: [defaultStation],
+      metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
+    });
+    expect(blocks[0].text).toContain('1948-01-01');
+    expect(blocks[0].text).toContain('2024-12-31');
+  });
+});
+
+describe('noaaFindStations — security', () => {
+  it('injection attempts in locationId are passed as opaque strings, not executed', async () => {
+    const mockService = {
+      findStations: vi.fn().mockResolvedValue({
+        results: [],
+        metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
+      }),
+    } as unknown as ReturnType<typeof getCdoService>;
+    vi.mocked(getCdoService).mockReturnValue(mockService);
+
+    const ctx = createMockContext();
+    const injection = "FIPS:37' OR '1'='1";
+    const input = noaaFindStations.input.parse({ locationId: injection });
+    await noaaFindStations.handler(input, ctx);
+
+    expect(mockService.findStations).toHaveBeenCalledWith(
+      expect.objectContaining({ locationid: injection }),
+      ctx,
+    );
+  });
+});
