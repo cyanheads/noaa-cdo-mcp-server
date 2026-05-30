@@ -2,6 +2,7 @@
 .mcpregistry_*
 .claude/
 .agents/
+skills/
 Dockerfile
 bun.lock
 bunfig.toml
