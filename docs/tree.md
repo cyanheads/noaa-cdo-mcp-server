@@ -1,9 +1,14 @@
 # noaa-cdo-mcp-server - Directory Structure
 
-Generated on: 2026-05-24 21:53:04
+Generated on: 2026-06-02 14:28:17
 
 ```text
 noaa-cdo-mcp-server/
+├── .claude-plugin/
+│   └── plugin.json
+├── .codex-plugin/
+│   ├── mcp.json
+│   └── plugin.json
 ├── .github/
 │   └── ISSUE_TEMPLATE/
 │       ├── bug_report.yml
@@ -23,12 +28,14 @@ noaa-cdo-mcp-server/
 │   ├── build.ts
 │   ├── check-docs-sync.ts
 │   ├── check-framework-antipatterns.ts
+│   ├── check-skill-versions.ts
 │   ├── check-skills-sync.ts
 │   ├── clean.ts
 │   ├── devcheck.ts
 │   ├── lint-mcp.ts
 │   ├── lint-packaging.ts
 │   ├── list-skills.ts
+│   ├── release-github.ts
 │   ├── split-changelog.ts
 │   └── tree.ts
 ├── skills/
@@ -56,6 +63,8 @@ noaa-cdo-mcp-server/
 │   │   └── SKILL.md
 │   ├── api-linter/
 │   │   └── SKILL.md
+│   ├── api-mirror/
+│   │   └── SKILL.md
 │   ├── api-services/
 │   │   ├── references/
 │   │   │   ├── graph.md
@@ -74,6 +83,8 @@ noaa-cdo-mcp-server/
 │   │   └── SKILL.md
 │   ├── api-workers/
 │   │   └── SKILL.md
+│   ├── code-simplifier/
+│   │   └── SKILL.md
 │   ├── design-mcp-server/
 │   │   └── SKILL.md
 │   ├── field-test/
@@ -82,7 +93,12 @@ noaa-cdo-mcp-server/
 │   │   └── SKILL.md
 │   ├── maintenance/
 │   │   └── SKILL.md
-│   ├── migrate-mcp-ts-template/
+│   ├── orchestrations/
+│   │   ├── workflows/
+│   │   │   ├── field-test-fix.md
+│   │   │   ├── fix-wrapup-release.md
+│   │   │   ├── greenfield-build.md
+│   │   │   └── maintenance-release.md
 │   │   └── SKILL.md
 │   ├── polish-docs-meta/
 │   │   ├── references/
@@ -130,13 +146,24 @@ noaa-cdo-mcp-server/
 ├── tests/
 │   ├── prompts/
 │   ├── resources/
+│   │   ├── noaa-datasets.resource.test.ts
+│   │   └── noaa-station.resource.test.ts
+│   ├── services/
+│   │   └── cdo-service.test.ts
 │   └── tools/
+│       ├── noaa-fetch-data-extended.tool.test.ts
 │       ├── noaa-fetch-data.tool.test.ts
+│       ├── noaa-find-locations-extended.tool.test.ts
 │       ├── noaa-find-locations.tool.test.ts
+│       ├── noaa-find-stations-extended.tool.test.ts
 │       ├── noaa-find-stations.tool.test.ts
+│       ├── noaa-get-station-extended.tool.test.ts
 │       ├── noaa-get-station.tool.test.ts
+│       ├── noaa-list-data-categories-extended.tool.test.ts
 │       ├── noaa-list-data-categories.tool.test.ts
+│       ├── noaa-list-data-types-extended.tool.test.ts
 │       ├── noaa-list-data-types.tool.test.ts
+│       ├── noaa-list-datasets-extended.tool.test.ts
 │       └── noaa-list-datasets.tool.test.ts
 ├── .dockerignore
 ├── .env.example
@@ -146,6 +173,7 @@ noaa-cdo-mcp-server/
 ├── bun.lock
 ├── bunfig.toml
 ├── CHANGELOG.md
+├── CITATION.cff
 ├── CLAUDE.md
 ├── devcheck.config.json
 ├── Dockerfile
