@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/noaa-cdo-mcp-server",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "mcpName": "io.github.cyanheads/noaa-cdo-mcp-server",
   "description": "Search NOAA CDO stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.",
   "type": "module",

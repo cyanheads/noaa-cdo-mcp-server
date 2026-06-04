@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.1.12](changelog/0.1.x/0.1.12.md) — 2026-06-04
+
+HTTP 400 errors from the NOAA CDO API now surface as structured validation_error with recovery hints across all 6 tools
+
 ## [0.1.11](changelog/0.1.x/0.1.11.md) — 2026-06-02
 
 Adopt @cyanheads/mcp-ts-core 0.9.21 — per-request log context fix, secret scrubbing from error messages, withRetry fail-fast on non-retryable errors
