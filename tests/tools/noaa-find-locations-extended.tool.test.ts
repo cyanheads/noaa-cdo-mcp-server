@@ -4,6 +4,7 @@
  * @module tests/tools/noaa-find-locations-extended.tool.test
  */
 
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaFindLocations } from '@/mcp-server/tools/definitions/noaa-find-locations.tool.js';
@@ -124,6 +125,37 @@ describe('noaaFindLocations — error propagation', () => {
     const ctx = createMockContext();
     const input = noaaFindLocations.input.parse({ locationCategoryId: 'ST' });
     await expect(noaaFindLocations.handler(input, ctx)).rejects.toThrow();
+  });
+
+  it('re-throws service HTTP 400 as validation_error with data.reason set', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      findLocations: vi.fn().mockRejectedValue(
+        new McpError(JsonRpcErrorCode.InvalidParams, 'NOAA CDO returned HTTP 400.', {
+          status: 400,
+        }),
+      ),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaFindLocations.errors });
+    const input = noaaFindLocations.input.parse({ datacategoryId: 'INVALID_CAT' });
+    await expect(noaaFindLocations.handler(input, ctx)).rejects.toMatchObject({
+      data: { reason: 'validation_error' },
+    });
+  });
+
+  it('passes non-InvalidParams McpErrors through unchanged', async () => {
+    const serviceError = new McpError(
+      JsonRpcErrorCode.ServiceUnavailable,
+      'NOAA CDO returned HTTP 503.',
+      { status: 503 },
+    );
+    vi.mocked(getCdoService).mockReturnValue({
+      findLocations: vi.fn().mockRejectedValue(serviceError),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaFindLocations.errors });
+    const input = noaaFindLocations.input.parse({});
+    await expect(noaaFindLocations.handler(input, ctx)).rejects.toBe(serviceError);
   });
 });
 

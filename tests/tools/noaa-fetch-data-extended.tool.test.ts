@@ -4,6 +4,7 @@
  * @module tests/tools/noaa-fetch-data-extended.tool.test
  */
 
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaFetchData } from '@/mcp-server/tools/definitions/noaa-fetch-data.tool.js';
@@ -246,6 +247,46 @@ describe('noaaFetchData — error propagation', () => {
       endDate: '2023-01-31',
     });
     await expect(noaaFetchData.handler(input, ctx)).rejects.toThrow();
+  });
+
+  it('re-throws service HTTP 400 as validation_error with data.reason set', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      fetchData: vi.fn().mockRejectedValue(
+        new McpError(JsonRpcErrorCode.InvalidParams, 'NOAA CDO returned HTTP 400.', {
+          status: 400,
+        }),
+      ),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+      datatypeId: ['INVALID_TYPE'],
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+      data: { reason: 'validation_error' },
+    });
+  });
+
+  it('passes non-InvalidParams McpErrors through unchanged', async () => {
+    const serviceError = new McpError(
+      JsonRpcErrorCode.ServiceUnavailable,
+      'NOAA CDO returned HTTP 503.',
+      { status: 503 },
+    );
+    vi.mocked(getCdoService).mockReturnValue({
+      fetchData: vi.fn().mockRejectedValue(serviceError),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toBe(serviceError);
   });
 });
 

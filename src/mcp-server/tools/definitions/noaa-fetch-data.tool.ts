@@ -4,7 +4,7 @@
  */
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
-import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 
 /** Datasets limited to 1-year date ranges per request. */
@@ -208,23 +208,35 @@ export const noaaFetchData = tool('noaa_fetch_data', {
     }
 
     const service = getCdoService();
-    const response = await service.fetchData(
-      {
-        datasetid: input.datasetId,
-        startdate: input.startDate,
-        enddate: input.endDate,
-        stationid: input.stationId,
-        locationid: input.locationId,
-        datatypeid: input.datatypeId,
-        units: input.units,
-        includemetadata: input.includemetadata,
-        sortfield: input.sortField,
-        sortorder: input.sortOrder,
-        limit: input.limit,
-        offset: input.offset,
-      },
-      ctx,
-    );
+    let response: Awaited<ReturnType<typeof service.fetchData>>;
+    try {
+      response = await service.fetchData(
+        {
+          datasetid: input.datasetId,
+          startdate: input.startDate,
+          enddate: input.endDate,
+          stationid: input.stationId,
+          locationid: input.locationId,
+          datatypeid: input.datatypeId,
+          units: input.units,
+          includemetadata: input.includemetadata,
+          sortfield: input.sortField,
+          sortorder: input.sortOrder,
+          limit: input.limit,
+          offset: input.offset,
+        },
+        ctx,
+      );
+    } catch (err) {
+      if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
+        throw ctx.fail('validation_error', err.message, {
+          recovery: {
+            hint: 'Verify the datasetId, date format (YYYY-MM-DD), and all filter IDs. Use noaa_list_datasets, noaa_find_stations, and noaa_list_data_types to confirm valid IDs.',
+          },
+        });
+      }
+      throw err;
+    }
 
     const results = (response.results ?? []).map((rec) => ({
       date: rec.date,

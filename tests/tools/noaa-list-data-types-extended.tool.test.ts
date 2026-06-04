@@ -4,6 +4,7 @@
  * @module tests/tools/noaa-list-data-types-extended.tool.test
  */
 
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaListDataTypes } from '@/mcp-server/tools/definitions/noaa-list-data-types.tool.js';
@@ -101,6 +102,37 @@ describe('noaaListDataTypes — error propagation', () => {
     const ctx = createMockContext();
     const input = noaaListDataTypes.input.parse({ datasetId: 'GHCND' });
     await expect(noaaListDataTypes.handler(input, ctx)).rejects.toThrow();
+  });
+
+  it('re-throws service HTTP 400 as validation_error with data.reason set', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      listDataTypes: vi.fn().mockRejectedValue(
+        new McpError(JsonRpcErrorCode.InvalidParams, 'NOAA CDO returned HTTP 400.', {
+          status: 400,
+        }),
+      ),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaListDataTypes.errors });
+    const input = noaaListDataTypes.input.parse({ datacategoryId: 'INVALID_CAT' });
+    await expect(noaaListDataTypes.handler(input, ctx)).rejects.toMatchObject({
+      data: { reason: 'validation_error' },
+    });
+  });
+
+  it('passes non-InvalidParams McpErrors through unchanged', async () => {
+    const serviceError = new McpError(
+      JsonRpcErrorCode.ServiceUnavailable,
+      'NOAA CDO returned HTTP 503.',
+      { status: 503 },
+    );
+    vi.mocked(getCdoService).mockReturnValue({
+      listDataTypes: vi.fn().mockRejectedValue(serviceError),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaListDataTypes.errors });
+    const input = noaaListDataTypes.input.parse({ datasetId: 'GHCND' });
+    await expect(noaaListDataTypes.handler(input, ctx)).rejects.toBe(serviceError);
   });
 });
 

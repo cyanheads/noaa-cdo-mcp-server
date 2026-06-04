@@ -4,7 +4,7 @@
  */
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
-import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 
 export const noaaListDataTypes = tool('noaa_list_data_types', {
@@ -126,6 +126,13 @@ export const noaaListDataTypes = tool('noaa_list_data_types', {
       retryable: true,
       recovery: 'Wait a moment and retry; NOAA CDO may be temporarily unavailable.',
     },
+    {
+      reason: 'validation_error',
+      code: JsonRpcErrorCode.ValidationError,
+      when: 'A filter parameter is not recognized by the NOAA CDO API (e.g., unknown datacategoryId or datasetId).',
+      recovery:
+        'Verify filter IDs — use noaa_list_data_categories to list valid datacategoryId values and noaa_list_datasets to list valid datasetId values.',
+    },
   ],
 
   async handler(input, ctx) {
@@ -135,21 +142,33 @@ export const noaaListDataTypes = tool('noaa_list_data_types', {
     });
 
     const service = getCdoService();
-    const response = await service.listDataTypes(
-      {
-        datasetid: input.datasetId,
-        datacategoryid: input.datacategoryId,
-        locationid: input.locationId,
-        stationid: input.stationId,
-        startdate: input.startDate,
-        enddate: input.endDate,
-        sortfield: input.sortField,
-        sortorder: input.sortOrder,
-        limit: input.limit,
-        offset: input.offset,
-      },
-      ctx,
-    );
+    let response: Awaited<ReturnType<typeof service.listDataTypes>>;
+    try {
+      response = await service.listDataTypes(
+        {
+          datasetid: input.datasetId,
+          datacategoryid: input.datacategoryId,
+          locationid: input.locationId,
+          stationid: input.stationId,
+          startdate: input.startDate,
+          enddate: input.endDate,
+          sortfield: input.sortField,
+          sortorder: input.sortOrder,
+          limit: input.limit,
+          offset: input.offset,
+        },
+        ctx,
+      );
+    } catch (err) {
+      if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
+        throw ctx.fail('validation_error', err.message, {
+          recovery: {
+            hint: 'Verify filter IDs — use noaa_list_data_categories to list valid datacategoryId values and noaa_list_datasets to list valid datasetId values.',
+          },
+        });
+      }
+      throw err;
+    }
 
     const results = (response.results ?? []).map((dt) => ({
       id: dt.id,

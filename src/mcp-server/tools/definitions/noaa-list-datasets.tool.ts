@@ -4,7 +4,7 @@
  */
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
-import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 
 export const noaaListDatasets = tool('noaa_list_datasets', {
@@ -125,20 +125,32 @@ export const noaaListDatasets = tool('noaa_list_datasets', {
     });
 
     const service = getCdoService();
-    const response = await service.listDatasets(
-      {
-        datatypeid: input.datatypeId,
-        locationid: input.locationId,
-        stationid: input.stationId,
-        startdate: input.startDate,
-        enddate: input.endDate,
-        sortfield: input.sortField,
-        sortorder: input.sortOrder,
-        limit: input.limit,
-        offset: input.offset,
-      },
-      ctx,
-    );
+    let response: Awaited<ReturnType<typeof service.listDatasets>>;
+    try {
+      response = await service.listDatasets(
+        {
+          datatypeid: input.datatypeId,
+          locationid: input.locationId,
+          stationid: input.stationId,
+          startdate: input.startDate,
+          enddate: input.endDate,
+          sortfield: input.sortField,
+          sortorder: input.sortOrder,
+          limit: input.limit,
+          offset: input.offset,
+        },
+        ctx,
+      );
+    } catch (err) {
+      if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
+        throw ctx.fail('validation_error', err.message, {
+          recovery: {
+            hint: 'Check date format (YYYY-MM-DD) and verify filter IDs are valid CDO identifiers.',
+          },
+        });
+      }
+      throw err;
+    }
 
     const results = response.results ?? [];
     const totalCount = response.metadata?.resultset.count ?? results.length;
