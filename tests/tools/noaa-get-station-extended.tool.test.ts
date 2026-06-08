@@ -85,6 +85,21 @@ describe('noaaGetStation — not_found error contract', () => {
       message: expect.stringContaining(stationId),
     });
   });
+
+  it('not_found error carries a recovery hint pointing to noaa_find_stations', async () => {
+    vi.mocked(getCdoService).mockReturnValue({
+      getStation: vi.fn().mockResolvedValue({}),
+    } as unknown as ReturnType<typeof getCdoService>);
+
+    const ctx = createMockContext({ errors: noaaGetStation.errors });
+    const input = noaaGetStation.input.parse({ stationId: 'GHCND:ZZZZZZZZZZ' });
+    await expect(noaaGetStation.handler(input, ctx)).rejects.toMatchObject({
+      data: {
+        reason: 'not_found',
+        recovery: { hint: expect.stringContaining('noaa_find_stations') },
+      },
+    });
+  });
 });
 
 describe('noaaGetStation — output shape', () => {

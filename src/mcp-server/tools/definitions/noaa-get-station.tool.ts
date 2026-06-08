@@ -80,7 +80,12 @@ export const noaaGetStation = tool('noaa_get_station', {
     const service = getCdoService();
     const st = await service.getStation(input.stationId, ctx);
 
-    if (!st.id) throw ctx.fail('not_found', `Station "${input.stationId}" not found.`);
+    if (!st.id)
+      throw ctx.fail('not_found', `Station "${input.stationId}" not found.`, {
+        recovery: {
+          hint: 'Verify the station ID format (e.g., GHCND:USW00450974) and use noaa_find_stations to discover valid IDs.',
+        },
+      });
 
     return {
       id: st.id,
