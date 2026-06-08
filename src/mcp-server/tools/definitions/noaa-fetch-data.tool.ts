@@ -13,6 +13,9 @@ const DAILY_DATASETS = new Set(['GHCND', 'PRECIP_15', 'PRECIP_HLY', 'NORMAL_DLY'
 /** Datasets limited to 10-year date ranges per request. */
 const MONTHLY_DATASETS = new Set(['GSOM', 'GSOY', 'NORMAL_MLY', 'NORMAL_ANN']);
 
+/** All stable CDO datasets. Used for pre-request validation so unknown IDs surface as validation_error, not a raw HTTP 500. */
+const KNOWN_DATASETS = new Set([...DAILY_DATASETS, ...MONTHLY_DATASETS, 'NEXRAD2', 'NEXRAD3']);
+
 /** Return the max allowed date-range days for a given datasetId, or undefined when unknown. */
 function maxRangeForDataset(datasetId: string): number | undefined {
   const upper = datasetId.toUpperCase();
@@ -185,6 +188,22 @@ export const noaaFetchData = tool('noaa_fetch_data', {
       stationId: input.stationId,
       datatypeId: input.datatypeId,
     });
+
+    // Validate datasetId against the known stable set before making a network call.
+    // NOAA CDO returns HTTP 500 for unknown dataset IDs — which would surface as a
+    // confusing InternalError. Pre-emptively throw validation_error so the agent
+    // knows the input is wrong, not that the service is down.
+    if (!KNOWN_DATASETS.has(input.datasetId.toUpperCase())) {
+      throw ctx.fail(
+        'validation_error',
+        `Unknown datasetId "${input.datasetId}". Use noaa_list_datasets to retrieve valid dataset IDs.`,
+        {
+          recovery: {
+            hint: 'Use noaa_list_datasets to list valid datasetId values.',
+          },
+        },
+      );
+    }
 
     // Validate date range against known dataset limits
     const maxDays = maxRangeForDataset(input.datasetId);

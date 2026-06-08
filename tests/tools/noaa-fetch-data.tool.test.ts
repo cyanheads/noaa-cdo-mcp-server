@@ -125,12 +125,42 @@ describe('noaaFetchData', () => {
     expect(result.results).toBeDefined();
   });
 
-  it('does not validate date range for unknown datasets', async () => {
+  it('throws validation_error for an unknown datasetId before calling the service', async () => {
     const ctx = createMockContext({ errors: noaaFetchData.errors });
     const input = noaaFetchData.input.parse({
-      datasetId: 'CUSTOM_DATASET',
+      datasetId: 'BOGUS_DATASET',
+      startDate: '2026-05-01',
+      endDate: '2026-05-07',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+      data: { reason: 'validation_error' },
+    });
+    // Service must not have been called
+    const { getCdoService } = await import('@/services/cdo/cdo-service.js');
+    expect(vi.mocked(getCdoService)().fetchData).not.toHaveBeenCalled();
+  });
+
+  it('validation_error for unknown datasetId includes a recovery hint', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'TYPO_DATASET',
+      startDate: '2026-05-01',
+      endDate: '2026-05-07',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+      data: {
+        reason: 'validation_error',
+        recovery: { hint: expect.stringContaining('noaa_list_datasets') },
+      },
+    });
+  });
+
+  it('does not validate date range for NEXRAD2 (no range limit)', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'NEXRAD2',
       startDate: '2000-01-01',
-      endDate: '2024-12-31', // > 10 years — should not throw for unknown dataset
+      endDate: '2024-12-31', // > 10 years — no limit for NEXRAD2
     });
     const result = await noaaFetchData.handler(input, ctx);
     expect(result.results).toBeDefined();

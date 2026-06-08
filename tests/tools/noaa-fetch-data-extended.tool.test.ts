@@ -220,6 +220,74 @@ describe('noaaFetchData — service params forwarding', () => {
   });
 });
 
+describe('noaaFetchData — datasetId pre-request validation', () => {
+  it('throws validation_error for an unknown datasetId before any service call', async () => {
+    const mockService = {
+      fetchData: vi.fn().mockResolvedValue(defaultMockResponse),
+    } as unknown as ReturnType<typeof getCdoService>;
+    vi.mocked(getCdoService).mockReturnValue(mockService);
+
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'BOGUS_DATASET',
+      startDate: '2026-05-01',
+      endDate: '2026-05-07',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+      data: { reason: 'validation_error' },
+    });
+    expect(mockService.fetchData).not.toHaveBeenCalled();
+  });
+
+  it('validation_error for unknown datasetId includes a recovery hint', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'BOGUS_DATASET',
+      startDate: '2026-05-01',
+      endDate: '2026-05-07',
+    });
+    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+      data: {
+        reason: 'validation_error',
+        recovery: { hint: expect.stringContaining('noaa_list_datasets') },
+      },
+    });
+  });
+
+  it('accepts NEXRAD2 as a known datasetId', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'NEXRAD2',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+    });
+    const result = await noaaFetchData.handler(input, ctx);
+    expect(result.results).toBeDefined();
+  });
+
+  it('accepts NEXRAD3 as a known datasetId', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'NEXRAD3',
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+    });
+    const result = await noaaFetchData.handler(input, ctx);
+    expect(result.results).toBeDefined();
+  });
+
+  it('unknown datasetId validation is case-insensitive', async () => {
+    const ctx = createMockContext({ errors: noaaFetchData.errors });
+    const input = noaaFetchData.input.parse({
+      datasetId: 'ghcnd', // lowercase — should still be recognized
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+    });
+    const result = await noaaFetchData.handler(input, ctx);
+    expect(result.results).toBeDefined();
+  });
+});
+
 describe('noaaFetchData — error propagation', () => {
   it('propagates service errors without swallowing them', async () => {
     vi.mocked(getCdoService).mockReturnValue({
