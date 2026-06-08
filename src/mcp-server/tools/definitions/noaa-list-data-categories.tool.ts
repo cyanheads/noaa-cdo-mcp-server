@@ -10,7 +10,7 @@ import { getCdoService } from '@/services/cdo/cdo-service.js';
 export const noaaListDataCategories = tool('noaa_list_data_categories', {
   title: 'List NOAA CDO Data Categories',
   description:
-    'List data categories that group related data types — Temperature, Precipitation, Wind, Pressure, Sunshine, Sky cover, Weather Type, and more. Use to discover what types of measurements are available before calling noaa_list_data_types. Optionally filter by dataset, location, station, or date range. There are ~41 categories in total.',
+    'List data categories that group related data types — Temperature, Precipitation, Wind, Pressure, Sunshine, Sky cover, Weather Type, and more. Use to discover what types of measurements are available before calling noaa_list_data_types. Optionally filter by dataset, location, station, or date range. There are 42 categories in total.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
     datasetId: z

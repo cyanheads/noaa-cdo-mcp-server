@@ -10,14 +10,14 @@ import { getCdoService } from '@/services/cdo/cdo-service.js';
 export const noaaFindLocations = tool('noaa_find_locations', {
   title: 'Find NOAA CDO Locations',
   description:
-    'Search for geographic locations by category (CITY, ST, CNTY, CNTRY, ZIP, CLIM_REG, etc.). Returns location IDs used in station search and data queries. Without locationCategoryId, returns all location types. Use locationCategoryId=ST to list US states (~52 entries — small enough to retrieve completely). Use locationCategoryId=CITY for cities (thousands of entries — use pagination and sortField=name to navigate alphabetically). The CDO API has no name-search parameter; to find a specific city, sort alphabetically with sortField=name and page through results. Location IDs: states as FIPS:37 (NC), cities as CITY:US530031, zip codes as ZIP:98101, countries as CNTRY:US. Obtain location IDs here, then pass them to noaa_find_stations or noaa_fetch_data.',
+    'Search for geographic locations by category (CITY, ST, CNTY, CNTRY, ZIP, CLIM_REG, etc.). Returns location IDs used in station search and data queries. Without locationCategoryId, returns all location types. Use locationCategoryId=ST to list US states (51 entries — small enough to retrieve completely). Use locationCategoryId=CITY for cities (thousands of entries — use pagination and sortField=name to navigate alphabetically). The CDO API has no name-search parameter; to find a specific city, sort alphabetically with sortField=name and page through results. Location IDs: states as FIPS:37 (NC), cities as CITY:US530031, zip codes as ZIP:98101, countries as CNTRY:US. Obtain location IDs here, then pass them to noaa_find_stations or noaa_fetch_data.',
   annotations: { readOnlyHint: true, openWorldHint: true },
   input: z.object({
     locationCategoryId: z
       .string()
       .optional()
       .describe(
-        'Category filter. Use ST for states (~52 entries), CNTY for counties, CITY for cities (large set — thousands of entries), CNTRY for countries, ZIP for zip codes, CLIM_REG for NOAA climate regions, CLIM_DIV for climate divisions, HYD_ACC/HYD_CAT/HYD_REG/HYD_SUB for hydrological categories. Optional — omit to return all location types.',
+        'Category filter. Use ST for states (51 entries), CNTY for counties, CITY for cities (large set — thousands of entries), CNTRY for countries, ZIP for zip codes, CLIM_REG for NOAA climate regions, CLIM_DIV for climate divisions, HYD_ACC/HYD_CAT/HYD_REG/HYD_SUB for hydrological categories. Optional — omit to return all location types.',
       ),
     datasetId: z
       .string()
