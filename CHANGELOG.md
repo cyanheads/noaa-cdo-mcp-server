@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.1.14](changelog/0.1.x/0.1.14.md) — 2026-06-12
+
+Adopt @cyanheads/mcp-ts-core 0.10.6; explicit name/title identity, MCPB bundle agent-doc cleaner, packaging identity + bundle-content lints, Dockerfile healthcheck
+
 ## [0.1.13](changelog/0.1.x/0.1.13.md) — 2026-06-08
 
 noaa_fetch_data pre-request datasetId validation, noaa_get_station not_found recovery hint, corrected entity counts in two tool descriptions

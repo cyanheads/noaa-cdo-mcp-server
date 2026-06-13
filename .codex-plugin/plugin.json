@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/noaa-cdo-mcp-server",
-  "version": "0.1.10",
+  "version": "0.1.14",
   "description": "Search NOAA CDO stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.",
   "author": {
     "name": "cyanheads",
@@ -13,7 +13,7 @@
   "keywords": ["mcp", "mcp-server", "model-context-protocol", "noaa", "climate", "weather", "cdo"],
   "mcpServers": "./.codex-plugin/mcp.json",
   "interface": {
-    "displayName": "@cyanheads/noaa-cdo-mcp-server",
+    "displayName": "noaa-cdo-mcp-server",
     "shortDescription": "Search NOAA CDO stations and datasets, fetch historical weather observations via MCP.",
     "longDescription": "Provides MCP tools to search NOAA Climate Data Online (CDO) stations and datasets, and fetch historical weather observation data. Supports STDIO and Streamable HTTP transport.",
     "developerName": "cyanheads",
