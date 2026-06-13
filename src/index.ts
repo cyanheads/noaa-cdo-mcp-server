@@ -17,6 +17,8 @@ import { noaaListDatasets } from './mcp-server/tools/definitions/noaa-list-datas
 import { initCdoService } from './services/cdo/cdo-service.js';
 
 await createApp({
+  name: 'noaa-cdo-mcp-server',
+  title: 'noaa-cdo-mcp-server',
   tools: [
     noaaListDatasets,
     noaaListDataCategories,
