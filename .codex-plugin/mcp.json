@@ -1,5 +1,5 @@
 {
-  "@cyanheads/noaa-cdo-mcp-server": {
+  "noaa-cdo-mcp-server": {
     "command": "npx",
     "args": ["-y", "@cyanheads/noaa-cdo-mcp-server"],
     "env": {
