@@ -1,6 +1,6 @@
 # noaa-cdo-mcp-server - Directory Structure
 
-Generated on: 2026-06-13 03:55:37
+Generated on: 2026-06-20 12:08:13
 
 ```text
 noaa-cdo-mcp-server/
@@ -26,6 +26,7 @@ noaa-cdo-mcp-server/
 ├── scripts/
 │   ├── build-changelog.ts
 │   ├── build.ts
+│   ├── check-dependency-specifiers.ts
 │   ├── check-docs-sync.ts
 │   ├── check-framework-antipatterns.ts
 │   ├── check-skill-versions.ts

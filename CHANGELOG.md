@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.1.15](changelog/0.1.x/0.1.15.md) — 2026-06-20
+
+Adopt @cyanheads/mcp-ts-core ^0.10.9 — check-dependency-specifiers devcheck guard, plugin-manifest packaging checks, synced framework scripts + skills; dev-dependency refresh
+
 ## [0.1.14](changelog/0.1.x/0.1.14.md) — 2026-06-12
 
 Adopt @cyanheads/mcp-ts-core 0.10.6; explicit name/title identity, MCPB bundle agent-doc cleaner, packaging identity + bundle-content lints, Dockerfile healthcheck
