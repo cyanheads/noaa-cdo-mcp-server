@@ -30,8 +30,8 @@ function daysBetween(start: string, end: string): number {
   return Math.round((new Date(end).getTime() - new Date(start).getTime()) / msPerDay) + 1;
 }
 
-export const noaaFetchData = tool('noaa_fetch_data', {
-  title: 'Fetch NOAA CDO Observation Data',
+export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
+  title: 'Fetch NOAA Climate Observation Data',
   description:
     'Fetch historical observation records from a NOAA CDO dataset for a given date range. Requires datasetId (e.g., GHCND for daily, GSOM for monthly), startDate, and endDate. Optionally scope to specific stations, locations, and data types. Date range limits per request: sub-daily and daily datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) are limited to 1 year; monthly and annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) are limited to 10 years. For climate normals (NORMAL_*), use startDate=2010-01-01 and endDate=2010-12-31 — that is the API proxy year regardless of which 30-year period is being described. Returns flat tuples of { date, datatype, station, value, attributes }. Strongly recommended: pass units=metric or units=standard — without it, GHCND values are raw tenths-of-unit integers (TMAX=256 = 25.6°C, PRCP=12 = 1.2mm). GSOM/GSOY are already scaled.',
   annotations: { readOnlyHint: true, openWorldHint: true },
@@ -56,7 +56,7 @@ export const noaaFetchData = tool('noaa_fetch_data', {
       .array(z.string())
       .optional()
       .describe(
-        'One or more station IDs to filter by (e.g., ["GHCND:USC00450974"]). Obtain from noaa_find_stations. Multiple IDs return comparative readings across stations. Optional.',
+        'One or more station IDs to filter by (e.g., ["GHCND:USC00450974"]). Obtain from noaa_climate_find_stations. Multiple IDs return comparative readings across stations. Optional.',
       ),
     locationId: z
       .array(z.string())
@@ -68,7 +68,7 @@ export const noaaFetchData = tool('noaa_fetch_data', {
       .array(z.string())
       .optional()
       .describe(
-        'One or more data type IDs to include (e.g., ["TMAX", "TMIN", "PRCP"]). Without this, all data types for the dataset are returned. Use noaa_list_data_types to discover valid IDs. Optional.',
+        'One or more data type IDs to include (e.g., ["TMAX", "TMIN", "PRCP"]). Without this, all data types for the dataset are returned. Use noaa_climate_list_data_types to discover valid IDs. Optional.',
       ),
     units: z
       .enum(['standard', 'metric'])
@@ -176,7 +176,7 @@ export const noaaFetchData = tool('noaa_fetch_data', {
       code: JsonRpcErrorCode.ValidationError,
       when: 'Bad dataset ID, date format, or unknown station/location/datatype ID.',
       recovery:
-        'Verify the datasetId, date format (YYYY-MM-DD), and all filter IDs. Use noaa_list_datasets, noaa_find_stations, and noaa_list_data_types to confirm valid IDs.',
+        'Verify the datasetId, date format (YYYY-MM-DD), and all filter IDs. Use noaa_climate_list_datasets, noaa_climate_find_stations, and noaa_climate_list_data_types to confirm valid IDs.',
     },
   ],
 
@@ -196,10 +196,10 @@ export const noaaFetchData = tool('noaa_fetch_data', {
     if (!KNOWN_DATASETS.has(input.datasetId.toUpperCase())) {
       throw ctx.fail(
         'validation_error',
-        `Unknown datasetId "${input.datasetId}". Use noaa_list_datasets to retrieve valid dataset IDs.`,
+        `Unknown datasetId "${input.datasetId}". Use noaa_climate_list_datasets to retrieve valid dataset IDs.`,
         {
           recovery: {
-            hint: 'Use noaa_list_datasets to list valid datasetId values.',
+            hint: 'Use noaa_climate_list_datasets to list valid datasetId values.',
           },
         },
       );
@@ -250,7 +250,7 @@ export const noaaFetchData = tool('noaa_fetch_data', {
       if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
         throw ctx.fail('validation_error', err.message, {
           recovery: {
-            hint: 'Verify the datasetId, date format (YYYY-MM-DD), and all filter IDs. Use noaa_list_datasets, noaa_find_stations, and noaa_list_data_types to confirm valid IDs.',
+            hint: 'Verify the datasetId, date format (YYYY-MM-DD), and all filter IDs. Use noaa_climate_list_datasets, noaa_climate_find_stations, and noaa_climate_list_data_types to confirm valid IDs.',
           },
         });
       }
@@ -282,7 +282,7 @@ export const noaaFetchData = tool('noaa_fetch_data', {
 
     if (results.length === 0) {
       ctx.enrich.notice(
-        `No observation records found for ${effectiveQuery}. Verify the station has data for this dataset and date range using noaa_find_stations, or try a different datatypeId.`,
+        `No observation records found for ${effectiveQuery}. Verify the station has data for this dataset and date range using noaa_climate_find_stations, or try a different datatypeId.`,
       );
     }
 

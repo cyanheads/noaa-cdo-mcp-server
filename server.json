@@ -1,25 +1,25 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.cyanheads/noaa-cdo-mcp-server",
-  "description": "Search NOAA CDO stations and datasets, fetch historical weather observations.",
+  "name": "io.github.cyanheads/noaa-climate-mcp-server",
+  "description": "Search NOAA climate stations and datasets, fetch historical weather observations.",
   "repository": {
-    "url": "https://github.com/cyanheads/noaa-cdo-mcp-server",
+    "url": "https://github.com/cyanheads/noaa-climate-mcp-server",
     "source": "github"
   },
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://noaa-cdo.caseyjhand.com/mcp"
+      "url": "https://noaa-climate.caseyjhand.com/mcp"
     }
   ],
-  "version": "0.1.15",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "@cyanheads/noaa-cdo-mcp-server",
+      "identifier": "@cyanheads/noaa-climate-mcp-server",
       "runtimeHint": "bun",
-      "version": "0.1.15",
+      "version": "0.2.0",
       "packageArguments": [
         {
           "type": "positional",
@@ -52,9 +52,9 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "@cyanheads/noaa-cdo-mcp-server",
+      "identifier": "@cyanheads/noaa-climate-mcp-server",
       "runtimeHint": "bun",
-      "version": "0.1.15",
+      "version": "0.2.0",
       "packageArguments": [
         {
           "type": "positional",

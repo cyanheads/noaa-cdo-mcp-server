@@ -1,11 +1,11 @@
 /**
- * @fileoverview Tests for the noaa_find_locations tool.
- * @module tests/tools/noaa-find-locations.tool.test
+ * @fileoverview Tests for the noaa_climate_find_locations tool.
+ * @module tests/tools/noaa-climate-find-locations.tool.test
  */
 
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaFindLocations } from '@/mcp-server/tools/definitions/noaa-find-locations.tool.js';
+import { noaaClimateFindLocations } from '@/mcp-server/tools/definitions/noaa-climate-find-locations.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -33,11 +33,11 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaFindLocations', () => {
+describe('noaaClimateFindLocations', () => {
   it('returns location results', async () => {
     const ctx = createMockContext();
-    const input = noaaFindLocations.input.parse({ locationCategoryId: 'ST' });
-    const result = await noaaFindLocations.handler(input, ctx);
+    const input = noaaClimateFindLocations.input.parse({ locationCategoryId: 'ST' });
+    const result = await noaaClimateFindLocations.handler(input, ctx);
 
     expect(result.results).toHaveLength(2);
     expect(result.results[0]).toMatchObject({ id: 'FIPS:37', name: 'North Carolina' });
@@ -53,8 +53,8 @@ describe('noaaFindLocations', () => {
       }),
     } as unknown as ReturnType<typeof getCdoService>);
     const ctx = createMockContext();
-    const input = noaaFindLocations.input.parse({ locationCategoryId: 'ZIP' });
-    await noaaFindLocations.handler(input, ctx);
+    const input = noaaClimateFindLocations.input.parse({ locationCategoryId: 'ZIP' });
+    await noaaClimateFindLocations.handler(input, ctx);
 
     const enrichment = getEnrichment(ctx);
     expect(enrichment.totalCount).toBe(0);
@@ -72,12 +72,12 @@ describe('noaaFindLocations', () => {
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
     const ctx = createMockContext();
-    const input = noaaFindLocations.input.parse({
+    const input = noaaClimateFindLocations.input.parse({
       locationCategoryId: 'CITY',
       limit: 10,
       offset: 50,
     });
-    await noaaFindLocations.handler(input, ctx);
+    await noaaClimateFindLocations.handler(input, ctx);
 
     expect(mockService.findLocations).toHaveBeenCalledWith(
       expect.objectContaining({ locationcategoryid: 'CITY', limit: 10, offset: 50 }),
@@ -87,8 +87,8 @@ describe('noaaFindLocations', () => {
 
   it('preserves sparse upstream payloads — omits optional fields', async () => {
     const ctx = createMockContext();
-    const input = noaaFindLocations.input.parse({});
-    const result = await noaaFindLocations.handler(input, ctx);
+    const input = noaaClimateFindLocations.input.parse({});
+    const result = await noaaClimateFindLocations.handler(input, ctx);
 
     const wa = result.results.find((l) => l.id === 'FIPS:53');
     expect(wa!.datacoverage).toBeUndefined();
@@ -96,7 +96,7 @@ describe('noaaFindLocations', () => {
   });
 
   it('formats output with IDs and names', () => {
-    const blocks = noaaFindLocations.format!({
+    const blocks = noaaClimateFindLocations.format!({
       results: mockLocations,
       metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
     });

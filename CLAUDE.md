@@ -1,7 +1,7 @@
 # Developer Protocol
 
-**Server:** noaa-cdo-mcp-server
-**Version:** 0.1.15
+**Server:** noaa-climate-mcp-server
+**Version:** 0.2.0
 **Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.10.9`
 **Engines:** Bun ≥1.3.0, Node ≥24.0.0
 **MCP SDK:** `@modelcontextprotocol/sdk` ^1.29.0
@@ -15,13 +15,13 @@
 
 NOAA Climate Data Online (CDO) API v2 — historical weather data. 7 tools, 2 resources:
 
-- `noaa_list_datasets` — list available CDO datasets
-- `noaa_list_data_categories` — list measurement category groups
-- `noaa_list_data_types` — list measurement labels by dataset or category
-- `noaa_find_locations` — search geographic locations by category
-- `noaa_find_stations` — search weather stations by location, bounding box, dataset
-- `noaa_get_station` — fetch full metadata for a single station
-- `noaa_fetch_data` — fetch historical observations with date range validation and unit selection
+- `noaa_climate_list_datasets` — list available CDO datasets
+- `noaa_climate_list_data_categories` — list measurement category groups
+- `noaa_climate_list_data_types` — list measurement labels by dataset or category
+- `noaa_climate_find_locations` — search geographic locations by category
+- `noaa_climate_find_stations` — search weather stations by location, bounding box, dataset
+- `noaa_climate_get_station` — fetch full metadata for a single station
+- `noaa_climate_fetch_data` — fetch historical observations with date range validation and unit selection
 - `noaa://datasets` resource — all CDO datasets as injectable context
 - `noaa://stations/{stationId}` resource — station metadata by ID
 

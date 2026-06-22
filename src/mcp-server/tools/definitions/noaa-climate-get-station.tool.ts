@@ -7,17 +7,17 @@ import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 
-export const noaaGetStation = tool('noaa_get_station', {
-  title: 'Get NOAA CDO Station',
+export const noaaClimateGetStation = tool('noaa_climate_get_station', {
+  title: 'Get NOAA Climate Station',
   description:
-    'Fetch full metadata for a single weather station by its ID (e.g., "GHCND:USC00450974", "COOP:010008"). Returns name, coordinates, elevation, and the full date range for which data is available. Use when you have a station ID from noaa_find_stations and want its complete details, or to verify a station before querying data.',
+    'Fetch full metadata for a single weather station by its ID (e.g., "GHCND:USC00450974", "COOP:010008"). Returns name, coordinates, elevation, and the full date range for which data is available. Use when you have a station ID from noaa_climate_find_stations and want its complete details, or to verify a station before querying data.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
     stationId: z
       .string()
       .min(1)
       .describe(
-        'Station ID to fetch (e.g., "GHCND:USC00450974", "COOP:010008"). Obtain from noaa_find_stations.',
+        'Station ID to fetch (e.g., "GHCND:USC00450974", "COOP:010008"). Obtain from noaa_climate_find_stations.',
       ),
   }),
   output: z.object({
@@ -63,7 +63,7 @@ export const noaaGetStation = tool('noaa_get_station', {
       code: JsonRpcErrorCode.NotFound,
       when: 'Station ID format is valid but no station exists with that ID.',
       recovery:
-        'Verify the station ID format (e.g., GHCND:USC00450974) and use noaa_find_stations to discover valid IDs.',
+        'Verify the station ID format (e.g., GHCND:USC00450974) and use noaa_climate_find_stations to discover valid IDs.',
     },
     {
       reason: 'service_unavailable',
@@ -83,7 +83,7 @@ export const noaaGetStation = tool('noaa_get_station', {
     if (!st.id)
       throw ctx.fail('not_found', `Station "${input.stationId}" not found.`, {
         recovery: {
-          hint: 'Verify the station ID format (e.g., GHCND:USW00450974) and use noaa_find_stations to discover valid IDs.',
+          hint: 'Verify the station ID format (e.g., GHCND:USW00450974) and use noaa_climate_find_stations to discover valid IDs.',
         },
       });
 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Extended tests for noaa_list_data_categories — params forwarding,
+ * @fileoverview Extended tests for noaa_climate_list_data_categories — params forwarding,
  * input validation, and error propagation.
  * @module tests/tools/noaa-list-data-categories-extended.tool.test
  */
@@ -7,7 +7,7 @@
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaListDataCategories } from '@/mcp-server/tools/definitions/noaa-list-data-categories.tool.js';
+import { noaaClimateListDataCategories } from '@/mcp-server/tools/definitions/noaa-climate-list-data-categories.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -29,30 +29,30 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaListDataCategories — input validation', () => {
+describe('noaaClimateListDataCategories — input validation', () => {
   it('rejects limit=0', () => {
-    expect(() => noaaListDataCategories.input.parse({ limit: 0 })).toThrow();
+    expect(() => noaaClimateListDataCategories.input.parse({ limit: 0 })).toThrow();
   });
 
   it('rejects limit=1001', () => {
-    expect(() => noaaListDataCategories.input.parse({ limit: 1001 })).toThrow();
+    expect(() => noaaClimateListDataCategories.input.parse({ limit: 1001 })).toThrow();
   });
 
   it('rejects negative offset', () => {
-    expect(() => noaaListDataCategories.input.parse({ offset: -1 })).toThrow();
+    expect(() => noaaClimateListDataCategories.input.parse({ offset: -1 })).toThrow();
   });
 
   it('rejects invalid sortField', () => {
-    expect(() => noaaListDataCategories.input.parse({ sortField: 'coverage' })).toThrow();
+    expect(() => noaaClimateListDataCategories.input.parse({ sortField: 'coverage' })).toThrow();
   });
 
   it('accepts sortField=id and sortField=name', () => {
-    expect(noaaListDataCategories.input.parse({ sortField: 'id' }).sortField).toBe('id');
-    expect(noaaListDataCategories.input.parse({ sortField: 'name' }).sortField).toBe('name');
+    expect(noaaClimateListDataCategories.input.parse({ sortField: 'id' }).sortField).toBe('id');
+    expect(noaaClimateListDataCategories.input.parse({ sortField: 'name' }).sortField).toBe('name');
   });
 });
 
-describe('noaaListDataCategories — all filter params forwarded', () => {
+describe('noaaClimateListDataCategories — all filter params forwarded', () => {
   it('forwards datasetId, locationId, stationId, date range, sort, and pagination', async () => {
     const mockService = {
       listDataCategories: vi.fn().mockResolvedValue(mockResponse),
@@ -60,7 +60,7 @@ describe('noaaListDataCategories — all filter params forwarded', () => {
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
     const ctx = createMockContext();
-    const input = noaaListDataCategories.input.parse({
+    const input = noaaClimateListDataCategories.input.parse({
       datasetId: 'GHCND',
       locationId: 'FIPS:37',
       stationId: 'GHCND:USC00450974',
@@ -71,7 +71,7 @@ describe('noaaListDataCategories — all filter params forwarded', () => {
       limit: 10,
       offset: 5,
     });
-    await noaaListDataCategories.handler(input, ctx);
+    await noaaClimateListDataCategories.handler(input, ctx);
 
     expect(mockService.listDataCategories).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -90,15 +90,15 @@ describe('noaaListDataCategories — all filter params forwarded', () => {
   });
 });
 
-describe('noaaListDataCategories — error propagation', () => {
+describe('noaaClimateListDataCategories — error propagation', () => {
   it('propagates service errors', async () => {
     vi.mocked(getCdoService).mockReturnValue({
       listDataCategories: vi.fn().mockRejectedValue(new Error('CDO unavailable')),
     } as unknown as ReturnType<typeof getCdoService>);
 
     const ctx = createMockContext();
-    const input = noaaListDataCategories.input.parse({});
-    await expect(noaaListDataCategories.handler(input, ctx)).rejects.toThrow();
+    const input = noaaClimateListDataCategories.input.parse({});
+    await expect(noaaClimateListDataCategories.handler(input, ctx)).rejects.toThrow();
   });
 
   it('re-throws service HTTP 400 as validation_error with data.reason set', async () => {
@@ -110,9 +110,9 @@ describe('noaaListDataCategories — error propagation', () => {
       ),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext({ errors: noaaListDataCategories.errors });
-    const input = noaaListDataCategories.input.parse({ datasetId: 'INVALID_DS' });
-    await expect(noaaListDataCategories.handler(input, ctx)).rejects.toMatchObject({
+    const ctx = createMockContext({ errors: noaaClimateListDataCategories.errors });
+    const input = noaaClimateListDataCategories.input.parse({ datasetId: 'INVALID_DS' });
+    await expect(noaaClimateListDataCategories.handler(input, ctx)).rejects.toMatchObject({
       data: { reason: 'validation_error' },
     });
   });
@@ -127,8 +127,8 @@ describe('noaaListDataCategories — error propagation', () => {
       listDataCategories: vi.fn().mockRejectedValue(serviceError),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext({ errors: noaaListDataCategories.errors });
-    const input = noaaListDataCategories.input.parse({});
-    await expect(noaaListDataCategories.handler(input, ctx)).rejects.toBe(serviceError);
+    const ctx = createMockContext({ errors: noaaClimateListDataCategories.errors });
+    const input = noaaClimateListDataCategories.input.parse({});
+    await expect(noaaClimateListDataCategories.handler(input, ctx)).rejects.toBe(serviceError);
   });
 });

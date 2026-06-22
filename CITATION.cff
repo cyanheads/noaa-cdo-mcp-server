@@ -1,13 +1,13 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: noaa-cdo-mcp-server
-abstract: "Search NOAA CDO stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP."
+title: noaa-climate-mcp-server
+abstract: "Search NOAA climate stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP."
 type: software
 authors:
   - family-names: Hand
     given-names: Casey
     orcid: "https://orcid.org/0009-0009-3726-568X"
-repository-code: "https://github.com/cyanheads/noaa-cdo-mcp-server"
+repository-code: "https://github.com/cyanheads/noaa-climate-mcp-server"
 license: Apache-2.0
 keywords:
   - mcp

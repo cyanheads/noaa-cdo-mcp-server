@@ -1,19 +1,19 @@
 {
-  "name": "noaa-cdo-mcp-server",
-  "version": "0.1.15",
-  "description": "Search NOAA CDO stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.",
+  "name": "noaa-climate-mcp-server",
+  "version": "0.2.0",
+  "description": "Search NOAA climate stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.",
   "author": {
     "name": "cyanheads"
   },
-  "homepage": "https://github.com/cyanheads/noaa-cdo-mcp-server#readme",
-  "repository": "https://github.com/cyanheads/noaa-cdo-mcp-server",
+  "homepage": "https://github.com/cyanheads/noaa-climate-mcp-server#readme",
+  "repository": "https://github.com/cyanheads/noaa-climate-mcp-server",
   "license": "Apache-2.0",
   "mcpServers": {
-    "noaa-cdo-mcp-server": {
+    "noaa-climate-mcp-server": {
       "command": "npx",
-      "args": ["-y", "@cyanheads/noaa-cdo-mcp-server"],
+      "args": ["-y", "@cyanheads/noaa-climate-mcp-server"],
       "env": {
-        "NOAA_CDO_TOKEN": "your-noaa-cdo-token",
+        "NOAA_CDO_TOKEN": "your-noaa-climate-token",
         "MCP_TRANSPORT_TYPE": "stdio"
       }
     }

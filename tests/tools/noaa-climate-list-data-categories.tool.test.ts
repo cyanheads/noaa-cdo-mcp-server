@@ -1,11 +1,11 @@
 /**
- * @fileoverview Tests for the noaa_list_data_categories tool.
- * @module tests/tools/noaa-list-data-categories.tool.test
+ * @fileoverview Tests for the noaa_climate_list_data_categories tool.
+ * @module tests/tools/noaa-climate-list-data-categories.tool.test
  */
 
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaListDataCategories } from '@/mcp-server/tools/definitions/noaa-list-data-categories.tool.js';
+import { noaaClimateListDataCategories } from '@/mcp-server/tools/definitions/noaa-climate-list-data-categories.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -27,11 +27,11 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaListDataCategories', () => {
+describe('noaaClimateListDataCategories', () => {
   it('returns category results', async () => {
     const ctx = createMockContext();
-    const input = noaaListDataCategories.input.parse({});
-    const result = await noaaListDataCategories.handler(input, ctx);
+    const input = noaaClimateListDataCategories.input.parse({});
+    const result = await noaaClimateListDataCategories.handler(input, ctx);
 
     expect(result.results).toHaveLength(2);
     expect(result.results[0]).toMatchObject({ id: 'TEMP', name: 'Air Temperature' });
@@ -45,8 +45,8 @@ describe('noaaListDataCategories', () => {
     } as unknown as ReturnType<typeof getCdoService>);
 
     const ctx = createMockContext();
-    const input = noaaListDataCategories.input.parse({});
-    const result = await noaaListDataCategories.handler(input, ctx);
+    const input = noaaClimateListDataCategories.input.parse({});
+    const result = await noaaClimateListDataCategories.handler(input, ctx);
 
     expect(result.results).toEqual([]);
     const enrichment = getEnrichment(ctx);
@@ -56,7 +56,7 @@ describe('noaaListDataCategories', () => {
   });
 
   it('formats output listing category IDs and names', () => {
-    const blocks = noaaListDataCategories.format!({
+    const blocks = noaaClimateListDataCategories.format!({
       results: mockCategories,
       metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
     });
@@ -70,7 +70,7 @@ describe('noaaListDataCategories', () => {
   });
 
   it('formats empty results with a fallback message', () => {
-    const blocks = noaaListDataCategories.format!({
+    const blocks = noaaClimateListDataCategories.format!({
       results: [],
       metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
     });

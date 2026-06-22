@@ -1,11 +1,11 @@
 /**
- * @fileoverview Tests for the noaa_list_datasets tool.
- * @module tests/tools/noaa-list-datasets.tool.test
+ * @fileoverview Tests for the noaa_climate_list_datasets tool.
+ * @module tests/tools/noaa-climate-list-datasets.tool.test
  */
 
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaListDatasets } from '@/mcp-server/tools/definitions/noaa-list-datasets.tool.js';
+import { noaaClimateListDatasets } from '@/mcp-server/tools/definitions/noaa-climate-list-datasets.tool.js';
 
 // Mock the service module so tests don't hit the network
 vi.mock('@/services/cdo/cdo-service.js', () => ({
@@ -42,11 +42,11 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaListDatasets', () => {
+describe('noaaClimateListDatasets', () => {
   it('returns dataset results with metadata', async () => {
     const ctx = createMockContext();
-    const input = noaaListDatasets.input.parse({});
-    const result = await noaaListDatasets.handler(input, ctx);
+    const input = noaaClimateListDatasets.input.parse({});
+    const result = await noaaClimateListDatasets.handler(input, ctx);
 
     expect(result.results).toHaveLength(2);
     expect(result.results[0]).toMatchObject({
@@ -67,8 +67,8 @@ describe('noaaListDatasets', () => {
     } as unknown as ReturnType<typeof getCdoService>);
 
     const ctx = createMockContext();
-    const input = noaaListDatasets.input.parse({});
-    const result = await noaaListDatasets.handler(input, ctx);
+    const input = noaaClimateListDatasets.input.parse({});
+    const result = await noaaClimateListDatasets.handler(input, ctx);
 
     expect(result.results).toEqual([]);
     expect(result.metadata?.resultset.count).toBe(0);
@@ -85,12 +85,12 @@ describe('noaaListDatasets', () => {
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
     const ctx = createMockContext();
-    const input = noaaListDatasets.input.parse({
+    const input = noaaClimateListDatasets.input.parse({
       datatypeId: ['TMAX'],
       locationId: 'FIPS:37',
       limit: 10,
     });
-    await noaaListDatasets.handler(input, ctx);
+    await noaaClimateListDatasets.handler(input, ctx);
 
     expect(mockService.listDatasets).toHaveBeenCalledWith(
       expect.objectContaining({ datatypeid: ['TMAX'], locationid: 'FIPS:37', limit: 10 }),
@@ -99,7 +99,7 @@ describe('noaaListDatasets', () => {
   });
 
   it('formats output with dataset IDs, names, coverage, and dates', () => {
-    const blocks = noaaListDatasets.format!({
+    const blocks = noaaClimateListDatasets.format!({
       results: mockDatasets,
       metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
     });
@@ -114,7 +114,7 @@ describe('noaaListDatasets', () => {
   });
 
   it('formats empty results with a fallback message', () => {
-    const blocks = noaaListDatasets.format!({
+    const blocks = noaaClimateListDatasets.format!({
       results: [],
       metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
     });

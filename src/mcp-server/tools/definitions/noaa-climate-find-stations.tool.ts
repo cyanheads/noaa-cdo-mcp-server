@@ -7,17 +7,17 @@ import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 
-export const noaaFindStations = tool('noaa_find_stations', {
-  title: 'Find NOAA CDO Stations',
+export const noaaClimateFindStations = tool('noaa_climate_find_stations', {
+  title: 'Find NOAA Climate Stations',
   description:
-    'Search for weather observation stations by location, bounding box, dataset, and data type. Returns station IDs, names, coordinates, elevation, and data coverage dates. Filter by locationId (e.g., "FIPS:37" for all NC stations), extent (lat/lon bounding box), datasetId, datatypeId, and date range. Station IDs returned here are used as stationId in noaa_fetch_data. A station must have data for the dataset and date range you want — filter by datasetId and startDate/endDate to ensure compatibility. Common station ID formats: GHCND:USC00450974, COOP:010008.',
+    'Search for weather observation stations by location, bounding box, dataset, and data type. Returns station IDs, names, coordinates, elevation, and data coverage dates. Filter by locationId (e.g., "FIPS:37" for all NC stations), extent (lat/lon bounding box), datasetId, datatypeId, and date range. Station IDs returned here are used as stationId in noaa_climate_fetch_data. A station must have data for the dataset and date range you want — filter by datasetId and startDate/endDate to ensure compatibility. Common station ID formats: GHCND:USC00450974, COOP:010008.',
   annotations: { readOnlyHint: true, openWorldHint: true },
   input: z.object({
     locationId: z
       .string()
       .optional()
       .describe(
-        'Filter to stations within this location ID (e.g., "FIPS:37" for NC, "CITY:US530031" for Seattle). Obtain from noaa_find_locations. Optional.',
+        'Filter to stations within this location ID (e.g., "FIPS:37" for NC, "CITY:US530031" for Seattle). Obtain from noaa_climate_find_locations. Optional.',
       ),
     extent: z
       .string()
@@ -155,7 +155,7 @@ export const noaaFindStations = tool('noaa_find_stations', {
       code: JsonRpcErrorCode.ValidationError,
       when: 'A filter parameter is not recognized by the NOAA CDO API (e.g., unknown locationId or datacategoryId).',
       recovery:
-        'Verify filter IDs — use noaa_find_locations to list valid locationId values and noaa_list_data_categories to list valid datacategoryId values.',
+        'Verify filter IDs — use noaa_climate_find_locations to list valid locationId values and noaa_climate_list_data_categories to list valid datacategoryId values.',
     },
   ],
 
@@ -189,7 +189,7 @@ export const noaaFindStations = tool('noaa_find_stations', {
       if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
         throw ctx.fail('validation_error', err.message, {
           recovery: {
-            hint: 'Verify filter IDs — use noaa_find_locations to list valid locationId values and noaa_list_data_categories to list valid datacategoryId values.',
+            hint: 'Verify filter IDs — use noaa_climate_find_locations to list valid locationId values and noaa_climate_list_data_categories to list valid datacategoryId values.',
           },
         });
       }

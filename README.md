@@ -1,19 +1,19 @@
 <div align="center">
-  <h1>@cyanheads/noaa-cdo-mcp-server</h1>
-  <p><b>Search NOAA CDO stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.</b>
+  <h1>@cyanheads/noaa-climate-mcp-server</h1>
+  <p><b>Search NOAA climate stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.</b>
   <div>7 Tools • 2 Resources</div>
   </p>
 </div>
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.1.15-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/noaa-cdo-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/noaa-cdo-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/noaa-cdo-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.0-blueviolet.svg?style=flat-square)](https://bun.sh/)
+[![Version](https://img.shields.io/badge/Version-0.2.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/noaa-climate-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/noaa-climate-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/noaa-climate-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.0-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
 <div align="center">
 
-[![Install in Claude Desktop](https://img.shields.io/badge/Install_in-Claude_Desktop-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://github.com/cyanheads/noaa-cdo-mcp-server/releases/latest/download/noaa-cdo-mcp-server.mcpb) [![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=noaa-cdo-mcp-server&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkBjeWFuaGVhZHMvbm9hYS1jZG8tbWNwLXNlcnZlciJdLCJlbnYiOnsiTk9BQV9DRE9fVE9LRU4iOiJ5b3VyLXRva2VuLWhlcmUifX0=) [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect?url=vscode:mcp/install?%7B%22name%22%3A%22noaa-cdo-mcp-server%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40cyanheads%2Fnoaa-cdo-mcp-server%22%5D%2C%22env%22%3A%7B%22NOAA_CDO_TOKEN%22%3A%22your-token-here%22%7D%7D)
+[![Install in Claude Desktop](https://img.shields.io/badge/Install_in-Claude_Desktop-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://github.com/cyanheads/noaa-climate-mcp-server/releases/latest/download/noaa-climate-mcp-server.mcpb) [![Install in Cursor](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=noaa-climate-mcp-server&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkBjeWFuaGVhZHMvbm9hYS1jbGltYXRlLW1jcC1zZXJ2ZXIiXSwiZW52Ijp7Ik5PQUFfQ0RPX1RPS0VOIjoieW91ci10b2tlbi1oZXJlIn19) [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Server-0098FF?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect?url=vscode:mcp/install?%7B%22name%22%3A%22noaa-climate-mcp-server%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40cyanheads%2Fnoaa-climate-mcp-server%22%5D%2C%22env%22%3A%7B%22NOAA_CDO_TOKEN%22%3A%22your-token-here%22%7D%7D)
 
 [![Framework](https://img.shields.io/badge/Built%20on-@cyanheads/mcp--ts--core-67E8F9?style=flat-square)](https://www.npmjs.com/package/@cyanheads/mcp-ts-core)
 
@@ -21,7 +21,7 @@
 
 <div align="center">
 
-**Public Hosted Server:** [https://noaa-cdo.caseyjhand.com/mcp](https://noaa-cdo.caseyjhand.com/mcp)
+**Public Hosted Server:** [https://noaa-climate.caseyjhand.com/mcp](https://noaa-climate.caseyjhand.com/mcp)
 
 </div>
 
@@ -33,15 +33,15 @@
 
 | Tool | Description |
 |:---|:---|
-| `noaa_list_datasets` | List available CDO datasets with IDs, names, and temporal coverage |
-| `noaa_list_data_categories` | List data category groups (Temperature, Precipitation, Wind, etc.) |
-| `noaa_list_data_types` | List specific measurement labels (TMAX, TMIN, PRCP, SNOW, etc.) by dataset or category |
-| `noaa_find_locations` | Search geographic locations by category (states, cities, counties, zip codes, climate regions) |
-| `noaa_find_stations` | Search weather stations by location, bounding box, dataset, and data type |
-| `noaa_get_station` | Fetch full metadata for a single station by ID |
-| `noaa_fetch_data` | Fetch historical observation records for a dataset and date range |
+| `noaa_climate_list_datasets` | List available CDO datasets with IDs, names, and temporal coverage |
+| `noaa_climate_list_data_categories` | List data category groups (Temperature, Precipitation, Wind, etc.) |
+| `noaa_climate_list_data_types` | List specific measurement labels (TMAX, TMIN, PRCP, SNOW, etc.) by dataset or category |
+| `noaa_climate_find_locations` | Search geographic locations by category (states, cities, counties, zip codes, climate regions) |
+| `noaa_climate_find_stations` | Search weather stations by location, bounding box, dataset, and data type |
+| `noaa_climate_get_station` | Fetch full metadata for a single station by ID |
+| `noaa_climate_fetch_data` | Fetch historical observation records for a dataset and date range |
 
-### `noaa_list_datasets`
+### `noaa_climate_list_datasets`
 
 List all available NOAA CDO datasets — approximately 11 in total.
 
@@ -49,21 +49,21 @@ List all available NOAA CDO datasets — approximately 11 in total.
 - No required parameters — returns everything by default
 - Optionally filter by data type, location, station, or date range
 - Common datasets: GHCND (daily, 1763–present), GSOM (monthly), GSOY (annual), NORMAL_DLY/MLY/ANN/HLY (1981–2010 climate normals)
-- Start here to orient before calling `noaa_fetch_data`
+- Start here to orient before calling `noaa_climate_fetch_data`
 
 ---
 
-### `noaa_list_data_categories`
+### `noaa_climate_list_data_categories`
 
 List data category groups that organize related measurement types.
 
 - ~41 categories including Temperature, Precipitation, Wind, Pressure, Sunshine, Sky cover, Weather Type
 - Optionally filter by dataset, location, station, or date range
-- Use before `noaa_list_data_types` to narrow by measurement domain
+- Use before `noaa_climate_list_data_types` to narrow by measurement domain
 
 ---
 
-### `noaa_list_data_types`
+### `noaa_climate_list_data_types`
 
 List specific measurement labels for a dataset or category.
 
@@ -74,7 +74,7 @@ List specific measurement labels for a dataset or category.
 
 ---
 
-### `noaa_find_locations`
+### `noaa_climate_find_locations`
 
 Search geographic locations by category.
 
@@ -85,7 +85,7 @@ Search geographic locations by category.
 
 ---
 
-### `noaa_find_stations`
+### `noaa_climate_find_stations`
 
 Search weather observation stations.
 
@@ -93,11 +93,11 @@ Search weather observation stations.
 - Returns station IDs, names, coordinates, elevation, and data coverage dates
 - A station must have data for the dataset and date range you want — pass `datasetId` and date range to ensure compatibility
 - Common station ID formats: `GHCND:USC00450974`, `COOP:010008`
-- Station IDs returned here feed directly into `noaa_fetch_data`
+- Station IDs returned here feed directly into `noaa_climate_fetch_data`
 
 ---
 
-### `noaa_get_station`
+### `noaa_climate_get_station`
 
 Fetch full metadata for a single weather station by ID.
 
@@ -107,7 +107,7 @@ Fetch full metadata for a single weather station by ID.
 
 ---
 
-### `noaa_fetch_data`
+### `noaa_climate_fetch_data`
 
 Fetch historical observation records from a NOAA CDO dataset.
 
@@ -158,10 +158,10 @@ Add the following to your MCP client configuration file.
 ```json
 {
   "mcpServers": {
-    "noaa-cdo-mcp-server": {
+    "noaa-climate-mcp-server": {
       "type": "stdio",
       "command": "bunx",
-      "args": ["@cyanheads/noaa-cdo-mcp-server@latest"],
+      "args": ["@cyanheads/noaa-climate-mcp-server@latest"],
       "env": {
         "MCP_TRANSPORT_TYPE": "stdio",
         "MCP_LOG_LEVEL": "info",
@@ -177,10 +177,10 @@ Or with npx (no Bun required):
 ```json
 {
   "mcpServers": {
-    "noaa-cdo-mcp-server": {
+    "noaa-climate-mcp-server": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@cyanheads/noaa-cdo-mcp-server@latest"],
+      "args": ["-y", "@cyanheads/noaa-climate-mcp-server@latest"],
       "env": {
         "MCP_TRANSPORT_TYPE": "stdio",
         "MCP_LOG_LEVEL": "info",
@@ -196,10 +196,10 @@ Or with Docker:
 ```json
 {
   "mcpServers": {
-    "noaa-cdo-mcp-server": {
+    "noaa-climate-mcp-server": {
       "type": "stdio",
       "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "MCP_TRANSPORT_TYPE=stdio", "-e", "NOAA_CDO_TOKEN=your-token-here", "ghcr.io/cyanheads/noaa-cdo-mcp-server:latest"]
+      "args": ["run", "-i", "--rm", "-e", "MCP_TRANSPORT_TYPE=stdio", "-e", "NOAA_CDO_TOKEN=your-token-here", "ghcr.io/cyanheads/noaa-climate-mcp-server:latest"]
     }
   }
 }
@@ -222,13 +222,13 @@ MCP_TRANSPORT_TYPE=http MCP_HTTP_PORT=3010 NOAA_CDO_TOKEN=your-token-here bun ru
 1. **Clone the repository:**
 
 ```sh
-git clone https://github.com/cyanheads/noaa-cdo-mcp-server.git
+git clone https://github.com/cyanheads/noaa-climate-mcp-server.git
 ```
 
 2. **Navigate into the directory:**
 
 ```sh
-cd noaa-cdo-mcp-server
+cd noaa-climate-mcp-server
 ```
 
 3. **Install dependencies:**

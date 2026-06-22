@@ -1,11 +1,11 @@
 /**
- * @fileoverview Tests for the noaa_fetch_data tool.
- * @module tests/tools/noaa-fetch-data.tool.test
+ * @fileoverview Tests for the noaa_climate_fetch_data tool.
+ * @module tests/tools/noaa-climate-fetch-data.tool.test
  */
 
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaFetchData } from '@/mcp-server/tools/definitions/noaa-fetch-data.tool.js';
+import { noaaClimateFetchData } from '@/mcp-server/tools/definitions/noaa-climate-fetch-data.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -33,16 +33,16 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaFetchData', () => {
+describe('noaaClimateFetchData', () => {
   it('returns observation records for a valid date range', async () => {
-    const ctx = createMockContext({ errors: noaaFetchData.errors });
-    const input = noaaFetchData.input.parse({
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
       datasetId: 'GHCND',
       startDate: '2023-01-01',
       endDate: '2023-01-31',
       units: 'metric',
     });
-    const result = await noaaFetchData.handler(input, ctx);
+    const result = await noaaClimateFetchData.handler(input, ctx);
 
     expect(result.results).toHaveLength(2);
     expect(result.results[0]).toMatchObject({
@@ -65,13 +65,13 @@ describe('noaaFetchData', () => {
         metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
       }),
     } as unknown as ReturnType<typeof getCdoService>);
-    const ctx = createMockContext({ errors: noaaFetchData.errors });
-    const input = noaaFetchData.input.parse({
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
       datasetId: 'GHCND',
       startDate: '2023-01-01',
       endDate: '2023-01-31',
     });
-    await noaaFetchData.handler(input, ctx);
+    await noaaClimateFetchData.handler(input, ctx);
 
     const enrichment = getEnrichment(ctx);
     expect(enrichment.totalCount).toBe(0);
@@ -80,59 +80,59 @@ describe('noaaFetchData', () => {
   });
 
   it('throws date_range_exceeded for GHCND with >365-day range', async () => {
-    const ctx = createMockContext({ errors: noaaFetchData.errors });
-    const input = noaaFetchData.input.parse({
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
       datasetId: 'GHCND',
       startDate: '2022-01-01',
       endDate: '2023-06-30',
     });
-    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+    await expect(noaaClimateFetchData.handler(input, ctx)).rejects.toMatchObject({
       data: { reason: 'date_range_exceeded' },
     });
   });
 
   it('throws date_range_exceeded for GSOM with >10-year range', async () => {
-    const ctx = createMockContext({ errors: noaaFetchData.errors });
-    const input = noaaFetchData.input.parse({
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
       datasetId: 'GSOM',
       startDate: '2000-01-01',
       endDate: '2015-01-01',
     });
-    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+    await expect(noaaClimateFetchData.handler(input, ctx)).rejects.toMatchObject({
       data: { reason: 'date_range_exceeded' },
     });
   });
 
   it('allows NORMAL_DLY within 1-year range', async () => {
-    const ctx = createMockContext({ errors: noaaFetchData.errors });
-    const input = noaaFetchData.input.parse({
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
       datasetId: 'NORMAL_DLY',
       startDate: '2010-01-01',
       endDate: '2010-12-31',
     });
-    const result = await noaaFetchData.handler(input, ctx);
+    const result = await noaaClimateFetchData.handler(input, ctx);
     expect(result.results).toBeDefined();
   });
 
   it('allows GSOM within 10-year range', async () => {
-    const ctx = createMockContext({ errors: noaaFetchData.errors });
-    const input = noaaFetchData.input.parse({
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
       datasetId: 'GSOM',
       startDate: '2015-01-01',
       endDate: '2020-01-01', // ~5 years, well within 10-year limit
     });
-    const result = await noaaFetchData.handler(input, ctx);
+    const result = await noaaClimateFetchData.handler(input, ctx);
     expect(result.results).toBeDefined();
   });
 
   it('throws validation_error for an unknown datasetId before calling the service', async () => {
-    const ctx = createMockContext({ errors: noaaFetchData.errors });
-    const input = noaaFetchData.input.parse({
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
       datasetId: 'BOGUS_DATASET',
       startDate: '2026-05-01',
       endDate: '2026-05-07',
     });
-    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+    await expect(noaaClimateFetchData.handler(input, ctx)).rejects.toMatchObject({
       data: { reason: 'validation_error' },
     });
     // Service must not have been called
@@ -141,46 +141,46 @@ describe('noaaFetchData', () => {
   });
 
   it('validation_error for unknown datasetId includes a recovery hint', async () => {
-    const ctx = createMockContext({ errors: noaaFetchData.errors });
-    const input = noaaFetchData.input.parse({
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
       datasetId: 'TYPO_DATASET',
       startDate: '2026-05-01',
       endDate: '2026-05-07',
     });
-    await expect(noaaFetchData.handler(input, ctx)).rejects.toMatchObject({
+    await expect(noaaClimateFetchData.handler(input, ctx)).rejects.toMatchObject({
       data: {
         reason: 'validation_error',
-        recovery: { hint: expect.stringContaining('noaa_list_datasets') },
+        recovery: { hint: expect.stringContaining('noaa_climate_list_datasets') },
       },
     });
   });
 
   it('does not validate date range for NEXRAD2 (no range limit)', async () => {
-    const ctx = createMockContext({ errors: noaaFetchData.errors });
-    const input = noaaFetchData.input.parse({
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
       datasetId: 'NEXRAD2',
       startDate: '2000-01-01',
       endDate: '2024-12-31', // > 10 years — no limit for NEXRAD2
     });
-    const result = await noaaFetchData.handler(input, ctx);
+    const result = await noaaClimateFetchData.handler(input, ctx);
     expect(result.results).toBeDefined();
   });
 
   it('preserves sparse upstream payloads — omits attributes when absent', async () => {
-    const ctx = createMockContext({ errors: noaaFetchData.errors });
-    const input = noaaFetchData.input.parse({
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
       datasetId: 'GHCND',
       startDate: '2023-01-01',
       endDate: '2023-01-31',
     });
-    const result = await noaaFetchData.handler(input, ctx);
+    const result = await noaaClimateFetchData.handler(input, ctx);
 
     const tmin = result.results.find((r) => r.datatype === 'TMIN');
     expect(tmin!.attributes).toBeUndefined();
   });
 
   it('formats output as a table with date, type, station, value, and attributes', () => {
-    const blocks = noaaFetchData.format!({
+    const blocks = noaaClimateFetchData.format!({
       results: mockRecords,
       metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
     });
@@ -194,7 +194,7 @@ describe('noaaFetchData', () => {
   });
 
   it('formats empty results with a fallback message', () => {
-    const blocks = noaaFetchData.format!({ results: [] });
+    const blocks = noaaClimateFetchData.format!({ results: [] });
     expect(blocks[0].text).toContain('No observation records');
   });
 });

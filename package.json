@@ -1,13 +1,13 @@
 {
-  "name": "@cyanheads/noaa-cdo-mcp-server",
-  "version": "0.1.15",
-  "mcpName": "io.github.cyanheads/noaa-cdo-mcp-server",
-  "description": "Search NOAA CDO stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.",
+  "name": "@cyanheads/noaa-climate-mcp-server",
+  "version": "0.2.0",
+  "mcpName": "io.github.cyanheads/noaa-climate-mcp-server",
+  "description": "Search NOAA climate stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "noaa-cdo-mcp-server": "dist/index.js"
+    "noaa-climate-mcp-server": "dist/index.js"
   },
   "files": ["dist/", "README.md", "LICENSE", "CLAUDE.md", "Dockerfile", "server.json"],
   "scripts": {
@@ -22,7 +22,7 @@
     "format:unsafe": "biome check --write --unsafe .",
     "lint:mcp": "bun run scripts/lint-mcp.ts",
     "lint:packaging": "bun run scripts/lint-packaging.ts",
-    "bundle": "bun run build && npx -y @anthropic-ai/mcpb pack . dist/noaa-cdo-mcp-server.mcpb && bun run scripts/clean-mcpb.ts dist/noaa-cdo-mcp-server.mcpb",
+    "bundle": "bun run build && npx -y @anthropic-ai/mcpb pack . dist/noaa-climate-mcp-server.mcpb && bun run scripts/clean-mcpb.ts dist/noaa-climate-mcp-server.mcpb",
     "changelog:build": "bun run scripts/build-changelog.ts",
     "changelog:check": "bun run scripts/build-changelog.ts --check",
     "test": "bunx vitest run",
@@ -49,13 +49,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cyanheads/noaa-cdo-mcp-server.git"
+    "url": "git+https://github.com/cyanheads/noaa-climate-mcp-server.git"
   },
   "bugs": {
-    "url": "https://github.com/cyanheads/noaa-cdo-mcp-server/issues"
+    "url": "https://github.com/cyanheads/noaa-climate-mcp-server/issues"
   },
-  "homepage": "https://github.com/cyanheads/noaa-cdo-mcp-server#readme",
-  "author": "cyanheads <casey@caseyjhand.com> (https://github.com/cyanheads/noaa-cdo-mcp-server#readme)",
+  "homepage": "https://github.com/cyanheads/noaa-climate-mcp-server#readme",
+  "author": "cyanheads <casey@caseyjhand.com> (https://github.com/cyanheads/noaa-climate-mcp-server#readme)",
   "funding": [
     {
       "type": "github",

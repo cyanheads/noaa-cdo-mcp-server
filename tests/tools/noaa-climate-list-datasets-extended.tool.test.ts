@@ -1,5 +1,5 @@
 /**
- * @fileoverview Extended tests for noaa_list_datasets — params forwarding,
+ * @fileoverview Extended tests for noaa_climate_list_datasets — params forwarding,
  * input validation, and security.
  * @module tests/tools/noaa-list-datasets-extended.tool.test
  */
@@ -7,7 +7,7 @@
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaListDatasets } from '@/mcp-server/tools/definitions/noaa-list-datasets.tool.js';
+import { noaaClimateListDatasets } from '@/mcp-server/tools/definitions/noaa-climate-list-datasets.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -34,32 +34,32 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaListDatasets — input validation', () => {
+describe('noaaClimateListDatasets — input validation', () => {
   it('rejects limit=0', () => {
-    expect(() => noaaListDatasets.input.parse({ limit: 0 })).toThrow();
+    expect(() => noaaClimateListDatasets.input.parse({ limit: 0 })).toThrow();
   });
 
   it('rejects limit=1001', () => {
-    expect(() => noaaListDatasets.input.parse({ limit: 1001 })).toThrow();
+    expect(() => noaaClimateListDatasets.input.parse({ limit: 1001 })).toThrow();
   });
 
   it('rejects negative offset', () => {
-    expect(() => noaaListDatasets.input.parse({ offset: -1 })).toThrow();
+    expect(() => noaaClimateListDatasets.input.parse({ offset: -1 })).toThrow();
   });
 
   it('rejects invalid sortField', () => {
-    expect(() => noaaListDatasets.input.parse({ sortField: 'foo' })).toThrow();
+    expect(() => noaaClimateListDatasets.input.parse({ sortField: 'foo' })).toThrow();
   });
 
   it('accepts valid sortField values', () => {
     for (const field of ['id', 'name', 'mindate', 'maxdate', 'datacoverage'] as const) {
-      const input = noaaListDatasets.input.parse({ sortField: field });
+      const input = noaaClimateListDatasets.input.parse({ sortField: field });
       expect(input.sortField).toBe(field);
     }
   });
 });
 
-describe('noaaListDatasets — service params forwarding', () => {
+describe('noaaClimateListDatasets — service params forwarding', () => {
   it('forwards stationId and startDate/endDate filters', async () => {
     const mockService = {
       listDatasets: vi.fn().mockResolvedValue(mockResponse),
@@ -67,12 +67,12 @@ describe('noaaListDatasets — service params forwarding', () => {
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
     const ctx = createMockContext();
-    const input = noaaListDatasets.input.parse({
+    const input = noaaClimateListDatasets.input.parse({
       stationId: 'GHCND:USC00450974',
       startDate: '2010-01-01',
       endDate: '2020-12-31',
     });
-    await noaaListDatasets.handler(input, ctx);
+    await noaaClimateListDatasets.handler(input, ctx);
 
     expect(mockService.listDatasets).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -91,8 +91,8 @@ describe('noaaListDatasets — service params forwarding', () => {
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
     const ctx = createMockContext();
-    const input = noaaListDatasets.input.parse({ sortField: 'name', sortOrder: 'desc' });
-    await noaaListDatasets.handler(input, ctx);
+    const input = noaaClimateListDatasets.input.parse({ sortField: 'name', sortOrder: 'desc' });
+    await noaaClimateListDatasets.handler(input, ctx);
 
     expect(mockService.listDatasets).toHaveBeenCalledWith(
       expect.objectContaining({ sortfield: 'name', sortorder: 'desc' }),
@@ -101,15 +101,15 @@ describe('noaaListDatasets — service params forwarding', () => {
   });
 });
 
-describe('noaaListDatasets — error propagation', () => {
+describe('noaaClimateListDatasets — error propagation', () => {
   it('propagates service errors without swallowing', async () => {
     vi.mocked(getCdoService).mockReturnValue({
       listDatasets: vi.fn().mockRejectedValue(new Error('CDO API unavailable')),
     } as unknown as ReturnType<typeof getCdoService>);
 
     const ctx = createMockContext();
-    const input = noaaListDatasets.input.parse({});
-    await expect(noaaListDatasets.handler(input, ctx)).rejects.toThrow();
+    const input = noaaClimateListDatasets.input.parse({});
+    await expect(noaaClimateListDatasets.handler(input, ctx)).rejects.toThrow();
   });
 
   it('re-throws service HTTP 400 as validation_error with data.reason set', async () => {
@@ -121,9 +121,9 @@ describe('noaaListDatasets — error propagation', () => {
       ),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext({ errors: noaaListDatasets.errors });
-    const input = noaaListDatasets.input.parse({ locationId: 'INVALID:99' });
-    await expect(noaaListDatasets.handler(input, ctx)).rejects.toMatchObject({
+    const ctx = createMockContext({ errors: noaaClimateListDatasets.errors });
+    const input = noaaClimateListDatasets.input.parse({ locationId: 'INVALID:99' });
+    await expect(noaaClimateListDatasets.handler(input, ctx)).rejects.toMatchObject({
       data: { reason: 'validation_error' },
     });
   });
@@ -138,13 +138,13 @@ describe('noaaListDatasets — error propagation', () => {
       listDatasets: vi.fn().mockRejectedValue(serviceError),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext({ errors: noaaListDatasets.errors });
-    const input = noaaListDatasets.input.parse({});
-    await expect(noaaListDatasets.handler(input, ctx)).rejects.toBe(serviceError);
+    const ctx = createMockContext({ errors: noaaClimateListDatasets.errors });
+    const input = noaaClimateListDatasets.input.parse({});
+    await expect(noaaClimateListDatasets.handler(input, ctx)).rejects.toBe(serviceError);
   });
 });
 
-describe('noaaListDatasets — security', () => {
+describe('noaaClimateListDatasets — security', () => {
   it('injection attempts in locationId are forwarded as opaque strings', async () => {
     const mockService = {
       listDatasets: vi.fn().mockResolvedValue(mockResponse),
@@ -153,8 +153,8 @@ describe('noaaListDatasets — security', () => {
 
     const ctx = createMockContext();
     const injection = "FIPS:37' OR '1'='1";
-    const input = noaaListDatasets.input.parse({ locationId: injection });
-    await noaaListDatasets.handler(input, ctx);
+    const input = noaaClimateListDatasets.input.parse({ locationId: injection });
+    await noaaClimateListDatasets.handler(input, ctx);
 
     expect(mockService.listDatasets).toHaveBeenCalledWith(
       expect.objectContaining({ locationid: injection }),
@@ -170,8 +170,8 @@ describe('noaaListDatasets — security', () => {
 
     const ctx = createMockContext();
     const unicodeId = 'TMAX​'; // zero-width space
-    const input = noaaListDatasets.input.parse({ datatypeId: [unicodeId] });
-    await noaaListDatasets.handler(input, ctx);
+    const input = noaaClimateListDatasets.input.parse({ datatypeId: [unicodeId] });
+    await noaaClimateListDatasets.handler(input, ctx);
 
     expect(mockService.listDatasets).toHaveBeenCalledWith(
       expect.objectContaining({ datatypeid: [unicodeId] }),

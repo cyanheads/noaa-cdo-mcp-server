@@ -1,5 +1,5 @@
 /**
- * @fileoverview Server-specific configuration for noaa-cdo-mcp-server.
+ * @fileoverview Server-specific configuration for noaa-climate-mcp-server.
  * @module config/server-config
  */
 

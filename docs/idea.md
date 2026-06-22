@@ -1,4 +1,4 @@
-# noaa-cdo-mcp-server
+# noaa-climate-mcp-server
 
 Historical climate and weather station data via NOAA Climate Data Online (CDO) API.
 

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Extended tests for noaa_find_locations — params forwarding,
+ * @fileoverview Extended tests for noaa_climate_find_locations — params forwarding,
  * format edge cases, and security.
  * @module tests/tools/noaa-find-locations-extended.tool.test
  */
@@ -7,7 +7,7 @@
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaFindLocations } from '@/mcp-server/tools/definitions/noaa-find-locations.tool.js';
+import { noaaClimateFindLocations } from '@/mcp-server/tools/definitions/noaa-climate-find-locations.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -34,25 +34,25 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaFindLocations — input validation', () => {
+describe('noaaClimateFindLocations — input validation', () => {
   it('rejects limit=0', () => {
-    expect(() => noaaFindLocations.input.parse({ limit: 0 })).toThrow();
+    expect(() => noaaClimateFindLocations.input.parse({ limit: 0 })).toThrow();
   });
 
   it('rejects limit=1001', () => {
-    expect(() => noaaFindLocations.input.parse({ limit: 1001 })).toThrow();
+    expect(() => noaaClimateFindLocations.input.parse({ limit: 1001 })).toThrow();
   });
 
   it('rejects negative offset', () => {
-    expect(() => noaaFindLocations.input.parse({ offset: -1 })).toThrow();
+    expect(() => noaaClimateFindLocations.input.parse({ offset: -1 })).toThrow();
   });
 
   it('rejects invalid sortField value', () => {
-    expect(() => noaaFindLocations.input.parse({ sortField: 'country' })).toThrow();
+    expect(() => noaaClimateFindLocations.input.parse({ sortField: 'country' })).toThrow();
   });
 });
 
-describe('noaaFindLocations — all filter params forwarded', () => {
+describe('noaaClimateFindLocations — all filter params forwarded', () => {
   it('forwards all optional filter fields to the service', async () => {
     const mockService = {
       findLocations: vi.fn().mockResolvedValue({
@@ -63,7 +63,7 @@ describe('noaaFindLocations — all filter params forwarded', () => {
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
     const ctx = createMockContext();
-    const input = noaaFindLocations.input.parse({
+    const input = noaaClimateFindLocations.input.parse({
       locationCategoryId: 'ST',
       datasetId: 'GHCND',
       datacategoryId: 'TEMP',
@@ -74,7 +74,7 @@ describe('noaaFindLocations — all filter params forwarded', () => {
       limit: 5,
       offset: 10,
     });
-    await noaaFindLocations.handler(input, ctx);
+    await noaaClimateFindLocations.handler(input, ctx);
 
     expect(mockService.findLocations).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -93,7 +93,7 @@ describe('noaaFindLocations — all filter params forwarded', () => {
   });
 });
 
-describe('noaaFindLocations — notice with category filter context', () => {
+describe('noaaClimateFindLocations — notice with category filter context', () => {
   it('notice includes both category and datasetId when both are applied', async () => {
     vi.mocked(getCdoService).mockReturnValue({
       findLocations: vi.fn().mockResolvedValue({
@@ -103,11 +103,11 @@ describe('noaaFindLocations — notice with category filter context', () => {
     } as unknown as ReturnType<typeof getCdoService>);
 
     const ctx = createMockContext();
-    const input = noaaFindLocations.input.parse({
+    const input = noaaClimateFindLocations.input.parse({
       locationCategoryId: 'ZIP',
       datasetId: 'GHCND',
     });
-    await noaaFindLocations.handler(input, ctx);
+    await noaaClimateFindLocations.handler(input, ctx);
 
     const enrichment = getEnrichment(ctx);
     const notice = enrichment.notice as string;
@@ -116,15 +116,15 @@ describe('noaaFindLocations — notice with category filter context', () => {
   });
 });
 
-describe('noaaFindLocations — error propagation', () => {
+describe('noaaClimateFindLocations — error propagation', () => {
   it('propagates service errors', async () => {
     vi.mocked(getCdoService).mockReturnValue({
       findLocations: vi.fn().mockRejectedValue(new Error('CDO API error')),
     } as unknown as ReturnType<typeof getCdoService>);
 
     const ctx = createMockContext();
-    const input = noaaFindLocations.input.parse({ locationCategoryId: 'ST' });
-    await expect(noaaFindLocations.handler(input, ctx)).rejects.toThrow();
+    const input = noaaClimateFindLocations.input.parse({ locationCategoryId: 'ST' });
+    await expect(noaaClimateFindLocations.handler(input, ctx)).rejects.toThrow();
   });
 
   it('re-throws service HTTP 400 as validation_error with data.reason set', async () => {
@@ -136,9 +136,9 @@ describe('noaaFindLocations — error propagation', () => {
       ),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext({ errors: noaaFindLocations.errors });
-    const input = noaaFindLocations.input.parse({ datacategoryId: 'INVALID_CAT' });
-    await expect(noaaFindLocations.handler(input, ctx)).rejects.toMatchObject({
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
+    const input = noaaClimateFindLocations.input.parse({ datacategoryId: 'INVALID_CAT' });
+    await expect(noaaClimateFindLocations.handler(input, ctx)).rejects.toMatchObject({
       data: { reason: 'validation_error' },
     });
   });
@@ -153,15 +153,15 @@ describe('noaaFindLocations — error propagation', () => {
       findLocations: vi.fn().mockRejectedValue(serviceError),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext({ errors: noaaFindLocations.errors });
-    const input = noaaFindLocations.input.parse({});
-    await expect(noaaFindLocations.handler(input, ctx)).rejects.toBe(serviceError);
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
+    const input = noaaClimateFindLocations.input.parse({});
+    await expect(noaaClimateFindLocations.handler(input, ctx)).rejects.toBe(serviceError);
   });
 });
 
-describe('noaaFindLocations — format edge cases', () => {
+describe('noaaClimateFindLocations — format edge cases', () => {
   it('formats locations with no optional fields (no date/coverage line)', () => {
-    const blocks = noaaFindLocations.format!({
+    const blocks = noaaClimateFindLocations.format!({
       results: [{ id: 'FIPS:53', name: 'Washington' }],
       metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
     });
@@ -174,14 +174,14 @@ describe('noaaFindLocations — format edge cases', () => {
   });
 
   it('formats coverage as a percentage when present', () => {
-    const blocks = noaaFindLocations.format!({
+    const blocks = noaaClimateFindLocations.format!({
       results: [{ id: 'FIPS:37', name: 'North Carolina', datacoverage: 1 }],
     });
     expect(blocks[0].text).toContain('100%');
   });
 
   it('formats date range when both mindate and maxdate are present', () => {
-    const blocks = noaaFindLocations.format!({
+    const blocks = noaaClimateFindLocations.format!({
       results: [{ id: 'FIPS:37', name: 'NC', mindate: '1869-01-01', maxdate: '2024-12-31' }],
     });
     expect(blocks[0].text).toContain('1869-01-01');
@@ -189,7 +189,7 @@ describe('noaaFindLocations — format edge cases', () => {
   });
 });
 
-describe('noaaFindLocations — security', () => {
+describe('noaaClimateFindLocations — security', () => {
   it('injection attempts in locationCategoryId are passed as opaque strings', async () => {
     const mockService = {
       findLocations: vi.fn().mockResolvedValue({
@@ -201,8 +201,8 @@ describe('noaaFindLocations — security', () => {
 
     const ctx = createMockContext();
     const injection = "ST' UNION SELECT * FROM secrets--";
-    const input = noaaFindLocations.input.parse({ locationCategoryId: injection });
-    await noaaFindLocations.handler(input, ctx);
+    const input = noaaClimateFindLocations.input.parse({ locationCategoryId: injection });
+    await noaaClimateFindLocations.handler(input, ctx);
 
     expect(mockService.findLocations).toHaveBeenCalledWith(
       expect.objectContaining({ locationcategoryid: injection }),
@@ -221,8 +221,8 @@ describe('noaaFindLocations — security', () => {
 
     const ctx = createMockContext();
     const oversized = 'A'.repeat(10_000);
-    const input = noaaFindLocations.input.parse({ locationCategoryId: oversized });
-    await noaaFindLocations.handler(input, ctx);
+    const input = noaaClimateFindLocations.input.parse({ locationCategoryId: oversized });
+    await noaaClimateFindLocations.handler(input, ctx);
 
     expect(mockService.findLocations).toHaveBeenCalled();
   });

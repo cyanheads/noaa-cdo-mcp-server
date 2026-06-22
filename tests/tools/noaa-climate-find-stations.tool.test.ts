@@ -1,11 +1,11 @@
 /**
- * @fileoverview Tests for the noaa_find_stations tool.
- * @module tests/tools/noaa-find-stations.tool.test
+ * @fileoverview Tests for the noaa_climate_find_stations tool.
+ * @module tests/tools/noaa-climate-find-stations.tool.test
  */
 
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaFindStations } from '@/mcp-server/tools/definitions/noaa-find-stations.tool.js';
+import { noaaClimateFindStations } from '@/mcp-server/tools/definitions/noaa-climate-find-stations.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -40,11 +40,14 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaFindStations', () => {
+describe('noaaClimateFindStations', () => {
   it('returns station results with coordinates and coverage', async () => {
     const ctx = createMockContext();
-    const input = noaaFindStations.input.parse({ locationId: 'FIPS:53', datasetId: 'GHCND' });
-    const result = await noaaFindStations.handler(input, ctx);
+    const input = noaaClimateFindStations.input.parse({
+      locationId: 'FIPS:53',
+      datasetId: 'GHCND',
+    });
+    const result = await noaaClimateFindStations.handler(input, ctx);
 
     expect(result.results).toHaveLength(2);
     const yakima = result.results[0];
@@ -64,8 +67,11 @@ describe('noaaFindStations', () => {
       }),
     } as unknown as ReturnType<typeof getCdoService>);
     const ctx = createMockContext();
-    const input = noaaFindStations.input.parse({ locationId: 'FIPS:99', datasetId: 'GHCND' });
-    await noaaFindStations.handler(input, ctx);
+    const input = noaaClimateFindStations.input.parse({
+      locationId: 'FIPS:99',
+      datasetId: 'GHCND',
+    });
+    await noaaClimateFindStations.handler(input, ctx);
 
     const enrichment = getEnrichment(ctx);
     expect(enrichment.totalCount).toBe(0);
@@ -75,8 +81,8 @@ describe('noaaFindStations', () => {
 
   it('preserves sparse upstream payloads — omits optional coordinate fields', async () => {
     const ctx = createMockContext();
-    const input = noaaFindStations.input.parse({});
-    const result = await noaaFindStations.handler(input, ctx);
+    const input = noaaClimateFindStations.input.parse({});
+    const result = await noaaClimateFindStations.handler(input, ctx);
 
     const sparse = result.results.find((s) => s.id === 'GHCND:USC00456789');
     expect(sparse!.latitude).toBeUndefined();
@@ -86,7 +92,7 @@ describe('noaaFindStations', () => {
   });
 
   it('formats output with station IDs, names, coordinates, and dates', () => {
-    const blocks = noaaFindStations.format!({
+    const blocks = noaaClimateFindStations.format!({
       results: mockStations,
       metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
     });

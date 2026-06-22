@@ -1,5 +1,5 @@
 /**
- * @fileoverview Extended tests for noaa_find_stations — params forwarding,
+ * @fileoverview Extended tests for noaa_climate_find_stations — params forwarding,
  * bounding-box filtering, format output, and security.
  * @module tests/tools/noaa-find-stations-extended.tool.test
  */
@@ -7,7 +7,7 @@
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaFindStations } from '@/mcp-server/tools/definitions/noaa-find-stations.tool.js';
+import { noaaClimateFindStations } from '@/mcp-server/tools/definitions/noaa-climate-find-stations.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -36,25 +36,25 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaFindStations — input validation', () => {
+describe('noaaClimateFindStations — input validation', () => {
   it('rejects limit=0', () => {
-    expect(() => noaaFindStations.input.parse({ limit: 0 })).toThrow();
+    expect(() => noaaClimateFindStations.input.parse({ limit: 0 })).toThrow();
   });
 
   it('rejects limit=1001', () => {
-    expect(() => noaaFindStations.input.parse({ limit: 1001 })).toThrow();
+    expect(() => noaaClimateFindStations.input.parse({ limit: 1001 })).toThrow();
   });
 
   it('rejects negative offset', () => {
-    expect(() => noaaFindStations.input.parse({ offset: -1 })).toThrow();
+    expect(() => noaaClimateFindStations.input.parse({ offset: -1 })).toThrow();
   });
 
   it('rejects invalid sortField value', () => {
-    expect(() => noaaFindStations.input.parse({ sortField: 'city' })).toThrow();
+    expect(() => noaaClimateFindStations.input.parse({ sortField: 'city' })).toThrow();
   });
 });
 
-describe('noaaFindStations — params forwarding', () => {
+describe('noaaClimateFindStations — params forwarding', () => {
   it('forwards extent (bounding box) to the service', async () => {
     const mockService = {
       findStations: vi.fn().mockResolvedValue({
@@ -65,10 +65,10 @@ describe('noaaFindStations — params forwarding', () => {
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
     const ctx = createMockContext();
-    const input = noaaFindStations.input.parse({
+    const input = noaaClimateFindStations.input.parse({
       extent: '47.5,-122.4,47.7,-122.1',
     });
-    await noaaFindStations.handler(input, ctx);
+    await noaaClimateFindStations.handler(input, ctx);
 
     expect(mockService.findStations).toHaveBeenCalledWith(
       expect.objectContaining({ extent: '47.5,-122.4,47.7,-122.1' }),
@@ -86,10 +86,10 @@ describe('noaaFindStations — params forwarding', () => {
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
     const ctx = createMockContext();
-    const input = noaaFindStations.input.parse({
+    const input = noaaClimateFindStations.input.parse({
       datatypeId: ['TMAX', 'TMIN', 'PRCP'],
     });
-    await noaaFindStations.handler(input, ctx);
+    await noaaClimateFindStations.handler(input, ctx);
 
     expect(mockService.findStations).toHaveBeenCalledWith(
       expect.objectContaining({ datatypeid: ['TMAX', 'TMIN', 'PRCP'] }),
@@ -107,7 +107,7 @@ describe('noaaFindStations — params forwarding', () => {
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
     const ctx = createMockContext();
-    const input = noaaFindStations.input.parse({
+    const input = noaaClimateFindStations.input.parse({
       locationId: 'FIPS:53',
       datasetId: 'GHCND',
       datacategoryId: 'TEMP',
@@ -118,7 +118,7 @@ describe('noaaFindStations — params forwarding', () => {
       limit: 10,
       offset: 25,
     });
-    await noaaFindStations.handler(input, ctx);
+    await noaaClimateFindStations.handler(input, ctx);
 
     expect(mockService.findStations).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -137,7 +137,7 @@ describe('noaaFindStations — params forwarding', () => {
   });
 });
 
-describe('noaaFindStations — notice message with filters', () => {
+describe('noaaClimateFindStations — notice message with filters', () => {
   it('notice includes applied filter context when no stations matched', async () => {
     vi.mocked(getCdoService).mockReturnValue({
       findStations: vi.fn().mockResolvedValue({
@@ -147,13 +147,13 @@ describe('noaaFindStations — notice message with filters', () => {
     } as unknown as ReturnType<typeof getCdoService>);
 
     const ctx = createMockContext();
-    const input = noaaFindStations.input.parse({
+    const input = noaaClimateFindStations.input.parse({
       locationId: 'FIPS:99',
       datasetId: 'GHCND',
       datatypeId: ['SNOW'],
       extent: '10,20,30,40',
     });
-    await noaaFindStations.handler(input, ctx);
+    await noaaClimateFindStations.handler(input, ctx);
 
     const enrichment = getEnrichment(ctx);
     expect(typeof enrichment.notice).toBe('string');
@@ -163,9 +163,9 @@ describe('noaaFindStations — notice message with filters', () => {
   });
 });
 
-describe('noaaFindStations — format output', () => {
+describe('noaaClimateFindStations — format output', () => {
   it('formats stations with no coordinates gracefully', () => {
-    const blocks = noaaFindStations.format!({
+    const blocks = noaaClimateFindStations.format!({
       results: [{ id: 'GHCND:SPARSE', name: 'Sparse Station' }],
       metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
     });
@@ -177,7 +177,7 @@ describe('noaaFindStations — format output', () => {
   });
 
   it('formats empty station list with fallback message', () => {
-    const blocks = noaaFindStations.format!({
+    const blocks = noaaClimateFindStations.format!({
       results: [],
       metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
     });
@@ -185,7 +185,7 @@ describe('noaaFindStations — format output', () => {
   });
 
   it('format includes data coverage percentage', () => {
-    const blocks = noaaFindStations.format!({
+    const blocks = noaaClimateFindStations.format!({
       results: [defaultStation],
       metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
     });
@@ -193,7 +193,7 @@ describe('noaaFindStations — format output', () => {
   });
 
   it('format includes data range when both mindate and maxdate are present', () => {
-    const blocks = noaaFindStations.format!({
+    const blocks = noaaClimateFindStations.format!({
       results: [defaultStation],
       metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
     });
@@ -202,7 +202,7 @@ describe('noaaFindStations — format output', () => {
   });
 });
 
-describe('noaaFindStations — error propagation', () => {
+describe('noaaClimateFindStations — error propagation', () => {
   it('re-throws service HTTP 400 as validation_error with data.reason set', async () => {
     vi.mocked(getCdoService).mockReturnValue({
       findStations: vi.fn().mockRejectedValue(
@@ -212,9 +212,9 @@ describe('noaaFindStations — error propagation', () => {
       ),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext({ errors: noaaFindStations.errors });
-    const input = noaaFindStations.input.parse({ locationId: 'INVALID:99' });
-    await expect(noaaFindStations.handler(input, ctx)).rejects.toMatchObject({
+    const ctx = createMockContext({ errors: noaaClimateFindStations.errors });
+    const input = noaaClimateFindStations.input.parse({ locationId: 'INVALID:99' });
+    await expect(noaaClimateFindStations.handler(input, ctx)).rejects.toMatchObject({
       data: { reason: 'validation_error' },
     });
   });
@@ -229,13 +229,13 @@ describe('noaaFindStations — error propagation', () => {
       findStations: vi.fn().mockRejectedValue(serviceError),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext({ errors: noaaFindStations.errors });
-    const input = noaaFindStations.input.parse({});
-    await expect(noaaFindStations.handler(input, ctx)).rejects.toBe(serviceError);
+    const ctx = createMockContext({ errors: noaaClimateFindStations.errors });
+    const input = noaaClimateFindStations.input.parse({});
+    await expect(noaaClimateFindStations.handler(input, ctx)).rejects.toBe(serviceError);
   });
 });
 
-describe('noaaFindStations — security', () => {
+describe('noaaClimateFindStations — security', () => {
   it('injection attempts in locationId are passed as opaque strings, not executed', async () => {
     const mockService = {
       findStations: vi.fn().mockResolvedValue({
@@ -247,8 +247,8 @@ describe('noaaFindStations — security', () => {
 
     const ctx = createMockContext();
     const injection = "FIPS:37' OR '1'='1";
-    const input = noaaFindStations.input.parse({ locationId: injection });
-    await noaaFindStations.handler(input, ctx);
+    const input = noaaClimateFindStations.input.parse({ locationId: injection });
+    await noaaClimateFindStations.handler(input, ctx);
 
     expect(mockService.findStations).toHaveBeenCalledWith(
       expect.objectContaining({ locationid: injection }),

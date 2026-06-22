@@ -1,11 +1,11 @@
 /**
- * @fileoverview Tests for the noaa_list_data_types tool.
- * @module tests/tools/noaa-list-data-types.tool.test
+ * @fileoverview Tests for the noaa_climate_list_data_types tool.
+ * @module tests/tools/noaa-climate-list-data-types.tool.test
  */
 
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaListDataTypes } from '@/mcp-server/tools/definitions/noaa-list-data-types.tool.js';
+import { noaaClimateListDataTypes } from '@/mcp-server/tools/definitions/noaa-climate-list-data-types.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -33,11 +33,11 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaListDataTypes', () => {
+describe('noaaClimateListDataTypes', () => {
   it('returns data type results with optional fields', async () => {
     const ctx = createMockContext();
-    const input = noaaListDataTypes.input.parse({ datasetId: 'GHCND' });
-    const result = await noaaListDataTypes.handler(input, ctx);
+    const input = noaaClimateListDataTypes.input.parse({ datasetId: 'GHCND' });
+    const result = await noaaClimateListDataTypes.handler(input, ctx);
 
     expect(result.results).toHaveLength(2);
     expect(result.results[0]).toMatchObject({
@@ -58,8 +58,8 @@ describe('noaaListDataTypes', () => {
       }),
     } as unknown as ReturnType<typeof getCdoService>);
     const ctx = createMockContext();
-    const input = noaaListDataTypes.input.parse({ datasetId: 'UNKNOWN' });
-    await noaaListDataTypes.handler(input, ctx);
+    const input = noaaClimateListDataTypes.input.parse({ datasetId: 'UNKNOWN' });
+    await noaaClimateListDataTypes.handler(input, ctx);
 
     const enrichment = getEnrichment(ctx);
     expect(enrichment.totalCount).toBe(0);
@@ -69,8 +69,8 @@ describe('noaaListDataTypes', () => {
 
   it('preserves sparse upstream payloads — omits optional fields when absent', async () => {
     const ctx = createMockContext();
-    const input = noaaListDataTypes.input.parse({});
-    const result = await noaaListDataTypes.handler(input, ctx);
+    const input = noaaClimateListDataTypes.input.parse({});
+    const result = await noaaClimateListDataTypes.handler(input, ctx);
 
     const prcp = result.results.find((dt) => dt.id === 'PRCP');
     expect(prcp).toBeDefined();
@@ -80,7 +80,7 @@ describe('noaaListDataTypes', () => {
   });
 
   it('formats output with IDs, names, and optional coverage/dates', () => {
-    const blocks = noaaListDataTypes.format!({
+    const blocks = noaaClimateListDataTypes.format!({
       results: [
         {
           id: 'TMAX',
@@ -100,7 +100,7 @@ describe('noaaListDataTypes', () => {
   });
 
   it('formats sparse entries without fabricating unknown values', () => {
-    const blocks = noaaListDataTypes.format!({
+    const blocks = noaaClimateListDataTypes.format!({
       results: [{ id: 'PRCP', name: 'Precipitation' }],
     });
     const text = blocks[0].text;

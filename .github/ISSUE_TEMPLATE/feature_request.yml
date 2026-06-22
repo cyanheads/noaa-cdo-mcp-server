@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest a new feature or improvement for noaa-cdo-mcp-server
+description: Suggest a new feature or improvement for noaa-climate-mcp-server
 labels: ["enhancement"]
 # assignees: ["your-github-username"]  # uncomment to auto-assign new issues
 body:

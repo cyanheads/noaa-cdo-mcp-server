@@ -1,43 +1,46 @@
 /**
- * @fileoverview List NOAA CDO data categories that group related data types.
- * @module mcp-server/tools/definitions/noaa-list-data-categories
+ * @fileoverview List available NOAA CDO datasets with IDs, names, and temporal coverage.
+ * @module mcp-server/tools/definitions/noaa-list-datasets
  */
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 
-export const noaaListDataCategories = tool('noaa_list_data_categories', {
-  title: 'List NOAA CDO Data Categories',
+export const noaaClimateListDatasets = tool('noaa_climate_list_datasets', {
+  title: 'List NOAA Climate Datasets',
   description:
-    'List data categories that group related data types — Temperature, Precipitation, Wind, Pressure, Sunshine, Sky cover, Weather Type, and more. Use to discover what types of measurements are available before calling noaa_list_data_types. Optionally filter by dataset, location, station, or date range. There are 42 categories in total.',
+    'List available NOAA CDO datasets with their IDs, names, and temporal coverage. Returns all ~11 datasets by default (no required parameters). Optionally filter to datasets that contain a specific data type, cover a location or station, or overlap a date range. Common datasets: GHCND (daily observations, 1763–present), GSOM (monthly summaries), GSOY (annual summaries), NORMAL_DLY/MLY/ANN/HLY (1981–2010 climate normals). Use this first to discover available datasets before calling noaa_climate_fetch_data.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
-    datasetId: z
-      .string()
+    datatypeId: z
+      .array(z.string())
       .optional()
       .describe(
-        'Filter to categories available in this dataset (e.g., "GHCND", "GSOM"). Optional.',
+        'Filter to datasets containing these data type IDs (e.g., ["TMAX", "PRCP"]). Optional.',
       ),
     locationId: z
       .string()
       .optional()
-      .describe('Filter to categories available at this location ID. Optional.'),
+      .describe('Filter to datasets covering this location ID (e.g., "FIPS:37" for NC). Optional.'),
     stationId: z
       .string()
       .optional()
-      .describe('Filter to categories available at this station ID. Optional.'),
+      .describe(
+        'Filter to datasets covering this station ID (e.g., "GHCND:USC00450974"). Optional.',
+      ),
     startDate: z
       .string()
       .optional()
-      .describe('Filter to categories with data on or after this ISO date (YYYY-MM-DD). Optional.'),
+      .describe('Filter to datasets with data on or after this ISO date (YYYY-MM-DD). Optional.'),
     endDate: z
       .string()
       .optional()
-      .describe(
-        'Filter to categories with data on or before this ISO date (YYYY-MM-DD). Optional.',
-      ),
-    sortField: z.enum(['id', 'name']).optional().describe('Sort results by this field. Optional.'),
+      .describe('Filter to datasets with data on or before this ISO date (YYYY-MM-DD). Optional.'),
+    sortField: z
+      .enum(['id', 'name', 'mindate', 'maxdate', 'datacoverage'])
+      .optional()
+      .describe('Sort results by this field. Optional.'),
     sortOrder: z
       .enum(['asc', 'desc'])
       .optional()
@@ -61,17 +64,22 @@ export const noaaListDataCategories = tool('noaa_list_data_categories', {
       .array(
         z
           .object({
-            id: z.string().describe('Data category ID (e.g., TEMP, PRCP, WIND).'),
-            name: z.string().describe('Human-readable category name.'),
+            id: z.string().describe('Dataset ID (e.g., GHCND, GSOM, GSOY).'),
+            name: z.string().describe('Human-readable dataset name.'),
+            datacoverage: z
+              .number()
+              .describe('Fractional data coverage (0–1). Higher is more complete.'),
+            mindate: z.string().describe('Earliest date available in the dataset (YYYY-MM-DD).'),
+            maxdate: z.string().describe('Latest date available in the dataset (YYYY-MM-DD).'),
           })
-          .describe('A single data category entry.'),
+          .describe('A single CDO dataset entry.'),
       )
-      .describe('Matching data categories.'),
+      .describe('Matching datasets.'),
     metadata: z
       .object({
         resultset: z
           .object({
-            count: z.number().describe('Total number of matching categories.'),
+            count: z.number().describe('Total number of matching datasets.'),
             limit: z.number().describe('Page size used for this response.'),
             offset: z
               .number()
@@ -84,14 +92,12 @@ export const noaaListDataCategories = tool('noaa_list_data_categories', {
   }),
 
   enrichment: {
-    totalCount: z
-      .number()
-      .describe('Total number of matching data categories before the page limit.'),
+    totalCount: z.number().describe('Total number of matching datasets before the page limit.'),
     notice: z
       .string()
       .optional()
       .describe(
-        'Guidance when no data categories matched — echoes applied filters and suggests how to broaden.',
+        'Guidance when no datasets matched — echoes applied filters and suggests how to broaden.',
       ),
   },
 
@@ -106,23 +112,24 @@ export const noaaListDataCategories = tool('noaa_list_data_categories', {
     {
       reason: 'validation_error',
       code: JsonRpcErrorCode.ValidationError,
-      when: 'A filter parameter is not recognized by the NOAA CDO API (e.g., unknown datasetId).',
-      recovery: 'Verify filter IDs — use noaa_list_datasets to list valid datasetId values.',
+      when: 'Bad date format or unrecognized filter ID.',
+      recovery: 'Check date format (YYYY-MM-DD) and verify filter IDs are valid CDO identifiers.',
     },
   ],
 
   async handler(input, ctx) {
-    ctx.log.info('Listing data categories', {
-      datasetId: input.datasetId,
+    ctx.log.info('Listing datasets', {
+      datatypeId: input.datatypeId,
       locationId: input.locationId,
+      stationId: input.stationId,
     });
 
     const service = getCdoService();
-    let response: Awaited<ReturnType<typeof service.listDataCategories>>;
+    let response: Awaited<ReturnType<typeof service.listDatasets>>;
     try {
-      response = await service.listDataCategories(
+      response = await service.listDatasets(
         {
-          datasetid: input.datasetId,
+          datatypeid: input.datatypeId,
           locationid: input.locationId,
           stationid: input.stationId,
           startdate: input.startDate,
@@ -138,7 +145,7 @@ export const noaaListDataCategories = tool('noaa_list_data_categories', {
       if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
         throw ctx.fail('validation_error', err.message, {
           recovery: {
-            hint: 'Verify filter IDs — use noaa_list_datasets to list valid datasetId values.',
+            hint: 'Check date format (YYYY-MM-DD) and verify filter IDs are valid CDO identifiers.',
           },
         });
       }
@@ -150,7 +157,7 @@ export const noaaListDataCategories = tool('noaa_list_data_categories', {
     ctx.enrich.total(totalCount);
     if (results.length === 0) {
       ctx.enrich.notice(
-        'No data categories matched the applied filters. Try removing location, station, or date range filters to see all available categories.',
+        'No datasets matched the applied filters. Try removing datatypeId, locationId, or stationId filters, or broaden the date range.',
       );
     }
 
@@ -169,12 +176,15 @@ export const noaaListDataCategories = tool('noaa_list_data_categories', {
       );
     }
     if (result.results.length === 0) {
-      lines.push('\n_No categories matched the filters._');
+      lines.push('\n_No datasets matched the filters._');
       return [{ type: 'text', text: lines.join('\n') }];
     }
     lines.push('');
-    for (const cat of result.results) {
-      lines.push(`- **\`${cat.id}\`** — ${cat.name}`);
+    for (const ds of result.results) {
+      lines.push(`## ${ds.name} (\`${ds.id}\`)`);
+      lines.push(
+        `**Coverage:** ${(ds.datacoverage * 100).toFixed(0)}% | **Date range:** ${ds.mindate} – ${ds.maxdate}`,
+      );
     }
     return [{ type: 'text', text: lines.join('\n') }];
   },

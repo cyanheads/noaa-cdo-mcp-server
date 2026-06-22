@@ -1,11 +1,11 @@
 /**
- * @fileoverview Tests for the noaa_get_station tool.
- * @module tests/tools/noaa-get-station.tool.test
+ * @fileoverview Tests for the noaa_climate_get_station tool.
+ * @module tests/tools/noaa-climate-get-station.tool.test
  */
 
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { noaaGetStation } from '@/mcp-server/tools/definitions/noaa-get-station.tool.js';
+import { noaaClimateGetStation } from '@/mcp-server/tools/definitions/noaa-climate-get-station.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -31,11 +31,11 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof getCdoService>);
 });
 
-describe('noaaGetStation', () => {
+describe('noaaClimateGetStation', () => {
   it('returns full station metadata', async () => {
-    const ctx = createMockContext({ errors: noaaGetStation.errors });
-    const input = noaaGetStation.input.parse({ stationId: 'GHCND:USC00450974' });
-    const result = await noaaGetStation.handler(input, ctx);
+    const ctx = createMockContext({ errors: noaaClimateGetStation.errors });
+    const input = noaaClimateGetStation.input.parse({ stationId: 'GHCND:USC00450974' });
+    const result = await noaaClimateGetStation.handler(input, ctx);
 
     expect(result.id).toBe('GHCND:USC00450974');
     expect(result.name).toBe('YAKIMA WA US');
@@ -49,9 +49,9 @@ describe('noaaGetStation', () => {
       getStation: vi.fn().mockRejectedValue(new Error('NOAA CDO returned HTTP 503')),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext({ errors: noaaGetStation.errors });
-    const input = noaaGetStation.input.parse({ stationId: 'GHCND:USC00450974' });
-    await expect(noaaGetStation.handler(input, ctx)).rejects.toThrow();
+    const ctx = createMockContext({ errors: noaaClimateGetStation.errors });
+    const input = noaaClimateGetStation.input.parse({ stationId: 'GHCND:USC00450974' });
+    await expect(noaaClimateGetStation.handler(input, ctx)).rejects.toThrow();
   });
 
   it('preserves sparse upstream payloads — omits optional fields when absent', async () => {
@@ -59,9 +59,9 @@ describe('noaaGetStation', () => {
       getStation: vi.fn().mockResolvedValue({ id: 'GHCND:X', name: 'Sparse' }),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext({ errors: noaaGetStation.errors });
-    const input = noaaGetStation.input.parse({ stationId: 'GHCND:X' });
-    const result = await noaaGetStation.handler(input, ctx);
+    const ctx = createMockContext({ errors: noaaClimateGetStation.errors });
+    const input = noaaClimateGetStation.input.parse({ stationId: 'GHCND:X' });
+    const result = await noaaClimateGetStation.handler(input, ctx);
 
     expect(result.latitude).toBeUndefined();
     expect(result.elevation).toBeUndefined();
@@ -69,7 +69,7 @@ describe('noaaGetStation', () => {
   });
 
   it('formats output with all known fields', () => {
-    const blocks = noaaGetStation.format!({ ...mockStation });
+    const blocks = noaaClimateGetStation.format!({ ...mockStation });
     const text = blocks[0].text;
     expect(text).toContain('YAKIMA WA US');
     expect(text).toContain('GHCND:USC00450974');
@@ -82,7 +82,7 @@ describe('noaaGetStation', () => {
   });
 
   it('formats sparse station showing "Not available" for missing fields', () => {
-    const blocks = noaaGetStation.format!({ id: 'GHCND:X', name: 'Sparse' });
+    const blocks = noaaClimateGetStation.format!({ id: 'GHCND:X', name: 'Sparse' });
     const text = blocks[0].text;
     expect(text).toContain('GHCND:X');
     expect(text).toContain('Sparse');

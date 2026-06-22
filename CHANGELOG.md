@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.2.0](changelog/0.2.x/0.2.0.md) — 2026-06-21 · ⚠️ Breaking
+
+Rename noaa-cdo-mcp-server → noaa-climate-mcp-server; tool prefix noaa_* → noaa_climate_* across all 7 tools. Breaking: new package name and tool ids. Install @cyanheads/noaa-climate-mcp-server; the old package is deprecated.
+
 ## [0.1.15](changelog/0.1.x/0.1.15.md) — 2026-06-20
 
 Adopt @cyanheads/mcp-ts-core ^0.10.9 — check-dependency-specifiers devcheck guard, plugin-manifest packaging checks, synced framework scripts + skills; dev-dependency refresh

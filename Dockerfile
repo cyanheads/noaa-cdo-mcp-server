@@ -41,10 +41,10 @@ ENV NODE_ENV=production
 
 # OCI image metadata (https://github.com/opencontainers/image-spec/blob/main/annotations.md)
 ARG APP_VERSION
-LABEL org.opencontainers.image.title="@cyanheads/noaa-cdo-mcp-server"
-LABEL org.opencontainers.image.description="Search NOAA CDO stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP."
+LABEL org.opencontainers.image.title="@cyanheads/noaa-climate-mcp-server"
+LABEL org.opencontainers.image.description="Search NOAA climate stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP."
 LABEL org.opencontainers.image.licenses="Apache-2.0"
-LABEL org.opencontainers.image.source="https://github.com/cyanheads/noaa-cdo-mcp-server"
+LABEL org.opencontainers.image.source="https://github.com/cyanheads/noaa-climate-mcp-server"
 LABEL org.opencontainers.image.version="${APP_VERSION}"
 
 # Copy dependency manifests
@@ -78,7 +78,7 @@ COPY --from=build /usr/src/app/dist ./dist
 # We will use this existing user for enhanced security.
 
 # Create and set permissions for the log directory, assigning ownership to the 'bun' user.
-RUN mkdir -p /var/log/noaa-cdo-mcp-server && chown -R bun:bun /var/log/noaa-cdo-mcp-server
+RUN mkdir -p /var/log/noaa-climate-mcp-server && chown -R bun:bun /var/log/noaa-climate-mcp-server
 
 # Switch to the non-root user
 USER bun
@@ -94,7 +94,7 @@ ENV MCP_HTTP_HOST="0.0.0.0"
 ENV MCP_TRANSPORT_TYPE="http"
 ENV MCP_SESSION_MODE="stateless"
 ENV MCP_LOG_LEVEL="info"
-ENV LOGS_DIR="/var/log/noaa-cdo-mcp-server"
+ENV LOGS_DIR="/var/log/noaa-climate-mcp-server"
 ENV MCP_FORCE_CONSOLE_LOGGING="true"
 
 # Expose the port the server listens on

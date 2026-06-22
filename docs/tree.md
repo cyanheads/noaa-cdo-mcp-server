@@ -1,9 +1,9 @@
-# noaa-cdo-mcp-server - Directory Structure
+# noaa-climate-mcp-server - Directory Structure
 
-Generated on: 2026-06-20 12:08:13
+Generated on: 2026-06-22 04:22:04
 
 ```text
-noaa-cdo-mcp-server/
+noaa-climate-mcp-server/
 ├── .claude-plugin/
 │   └── plugin.json
 ├── .codex-plugin/
@@ -19,6 +19,7 @@ noaa-cdo-mcp-server/
 │   └── settings.json
 ├── changelog/
 │   ├── 0.1.x/
+│   ├── 0.2.x/
 │   └── template.md
 ├── docs/
 │   ├── design.md
@@ -137,13 +138,13 @@ noaa-cdo-mcp-server/
 │   │   │       └── noaa-station.resource.ts
 │   │   └── tools/
 │   │       └── definitions/
-│   │           ├── noaa-fetch-data.tool.ts
-│   │           ├── noaa-find-locations.tool.ts
-│   │           ├── noaa-find-stations.tool.ts
-│   │           ├── noaa-get-station.tool.ts
-│   │           ├── noaa-list-data-categories.tool.ts
-│   │           ├── noaa-list-data-types.tool.ts
-│   │           └── noaa-list-datasets.tool.ts
+│   │           ├── noaa-climate-fetch-data.tool.ts
+│   │           ├── noaa-climate-find-locations.tool.ts
+│   │           ├── noaa-climate-find-stations.tool.ts
+│   │           ├── noaa-climate-get-station.tool.ts
+│   │           ├── noaa-climate-list-data-categories.tool.ts
+│   │           ├── noaa-climate-list-data-types.tool.ts
+│   │           └── noaa-climate-list-datasets.tool.ts
 │   ├── services/
 │   │   └── cdo/
 │   │       ├── cdo-service.ts
@@ -156,21 +157,22 @@ noaa-cdo-mcp-server/
 │   │   └── noaa-station.resource.test.ts
 │   ├── services/
 │   │   └── cdo-service.test.ts
-│   └── tools/
-│       ├── noaa-fetch-data-extended.tool.test.ts
-│       ├── noaa-fetch-data.tool.test.ts
-│       ├── noaa-find-locations-extended.tool.test.ts
-│       ├── noaa-find-locations.tool.test.ts
-│       ├── noaa-find-stations-extended.tool.test.ts
-│       ├── noaa-find-stations.tool.test.ts
-│       ├── noaa-get-station-extended.tool.test.ts
-│       ├── noaa-get-station.tool.test.ts
-│       ├── noaa-list-data-categories-extended.tool.test.ts
-│       ├── noaa-list-data-categories.tool.test.ts
-│       ├── noaa-list-data-types-extended.tool.test.ts
-│       ├── noaa-list-data-types.tool.test.ts
-│       ├── noaa-list-datasets-extended.tool.test.ts
-│       └── noaa-list-datasets.tool.test.ts
+│   ├── tools/
+│   │   ├── noaa-climate-fetch-data-extended.tool.test.ts
+│   │   ├── noaa-climate-fetch-data.tool.test.ts
+│   │   ├── noaa-climate-find-locations-extended.tool.test.ts
+│   │   ├── noaa-climate-find-locations.tool.test.ts
+│   │   ├── noaa-climate-find-stations-extended.tool.test.ts
+│   │   ├── noaa-climate-find-stations.tool.test.ts
+│   │   ├── noaa-climate-get-station-extended.tool.test.ts
+│   │   ├── noaa-climate-get-station.tool.test.ts
+│   │   ├── noaa-climate-list-data-categories-extended.tool.test.ts
+│   │   ├── noaa-climate-list-data-categories.tool.test.ts
+│   │   ├── noaa-climate-list-data-types-extended.tool.test.ts
+│   │   ├── noaa-climate-list-data-types.tool.test.ts
+│   │   ├── noaa-climate-list-datasets-extended.tool.test.ts
+│   │   └── noaa-climate-list-datasets.tool.test.ts
+│   └── tool-naming.test.ts
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
