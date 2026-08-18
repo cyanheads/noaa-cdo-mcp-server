@@ -1,13 +1,13 @@
 <div align="center">
   <h1>@cyanheads/noaa-climate-mcp-server</h1>
   <p><b>Search NOAA climate stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.</b>
-  <div>7 Tools • 2 Resources</div>
+  <div>9 Tools • 2 Resources</div>
   </p>
 </div>
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.4.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/noaa-climate-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.30.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/noaa-climate-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/noaa-climate-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^7.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.0-blueviolet.svg?style=flat-square)](https://bun.sh/)
+[![Version](https://img.shields.io/badge/Version-0.5.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/noaa-climate-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.30.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/noaa-climate-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/noaa-climate-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^7.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.0-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
@@ -29,7 +29,7 @@
 
 ## Tools
 
-8 tools for working with the NOAA Climate Data Online (CDO) API v2:
+9 tools — 8 over the NOAA Climate Data Online (CDO) API v2, plus severe-weather event search over the NCEI Storm Events Database:
 
 | Tool | Description |
 |:---|:---|
@@ -41,6 +41,7 @@
 | `noaa_climate_find_stations` | Search weather stations by location, bounding box, dataset, and data type |
 | `noaa_climate_get_station` | Fetch full metadata for a single station by ID |
 | `noaa_climate_fetch_data` | Fetch historical observation records for a dataset and date range |
+| `noaa_climate_search_storm_events` | Search the NCEI Storm Events Database for one year — tornadoes, hail, floods, hurricanes, with damage, casualties, and narratives |
 
 ### `noaa_climate_list_datasets`
 
@@ -127,6 +128,23 @@ Fetch historical observation records from a NOAA CDO dataset.
 - **Unit selection:** strongly recommended — pass `units=metric` (SI) or `units=standard` (Fahrenheit/inches). Without it, GHCND values are raw tenths-of-unit integers (TMAX=256 = 25.6°C, PRCP=12 = 1.2mm); GSOM/GSOY are already scaled
 - **Climate normals:** for any NORMAL_* dataset, use `startDate=2010-01-01` and `endDate=2010-12-31` — that is the API proxy year regardless of which 30-year period is described
 - Returns flat tuples of `{ date, datatype, station, value, attributes }` with pagination metadata
+
+---
+
+### `noaa_climate_search_storm_events`
+
+Search the NCEI Storm Events Database — a different NOAA corpus from the CDO tools above.
+
+- Discrete severe-weather events (tornado, hail, flood, hurricane, winter storm, heat, and every other NWS Storm Data type) rather than station observations, back to 1950
+- Returns event type, state and county/zone, begin and end times, magnitude, tornado F/EF scale with track length and width, direct and indirect deaths and injuries, property and crop damage, and the episode and event narratives
+- **No token required** — this corpus is published as bulk CSV, not through CDO, so `NOAA_CDO_TOKEN` is irrelevant to this tool
+- **`year` is required.** NCEI publishes one gzip file per year (~12 MB, ~70k events for a recent year), so an unscoped search would download every year back to 1950
+- **`state` takes the full name NCEI writes** — `"FLORIDA"`, not `"FL"`. `eventType` is matched case-insensitively against the exact NWS label (`"Tornado"`, `"Flash Flood"`, `"Hurricane (Typhoon)"`); a miss comes back with the labels that year actually contains
+- **Damage is honest about what NCEI reported.** Values arrive as magnitude-suffixed strings (`"75.00K"`, `"1.20M"`, `"1.00B"`) and are returned as both the raw cell and a parsed dollar amount. An unreported figure — about a fifth of a recent year — is omitted entirely rather than reported as `0`, so it can never be read as confirmed zero damage. `minDamageInUsd` therefore excludes those rows and reports how many it dropped
+- **Filenames are discovered, never constructed.** Each year's file carries a publish-date suffix that changes when NCEI republishes it, so the tool reads the directory index every time its cache lapses
+- The server caches two years of compressed bytes for six hours — under 30 MB, since a bundle runs 12 MB for a recent year and 15 MB for the largest (2011). Each search streams the decompression, so the ~70 MB decompressed form is never materialized. That bounds what is *retained*, not peak memory: the transient chunks still cost headroom, and a cold full-year 2024 scan measured 129 MB RSS at baseline against a 269 MB peak
+
+---
 
 ## Resources
 

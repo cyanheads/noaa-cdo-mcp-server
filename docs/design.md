@@ -14,6 +14,7 @@
 | `noaa_climate_find_stations` | Search for weather stations by location, bounding box, dataset, data type, and date range. Returns station IDs, names, coordinates, and data coverage metadata. | `locationId?`, `extent?`, `datasetId?`, `datatypeId?`, `datacategoryId?`, `startDate?`, `endDate?`, `sortField?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: true` |
 | `noaa_climate_get_station` | Fetch full metadata for a single station by ID, including name, coordinates, elevation, and data coverage dates. | `stationId` | `readOnlyHint: true`, `openWorldHint: false` |
 | `noaa_climate_fetch_data` | Fetch historical observation data for a dataset, date range, and one or more stations or locations. Returns time-series values for the requested data types. | `datasetId`, `startDate`, `endDate`, `stationId[]?`, `locationId[]?`, `datatypeId[]?`, `units?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: true` |
+| `noaa_climate_search_storm_events` | Search the NCEI Storm Events Database for one calendar year — severe-weather events with magnitude, casualties, damage, and narratives. A separate corpus from CDO: bulk gzip CSV, no token. | `year`, `state?`, `eventType?`, `month?`, `minDamageInUsd?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: true` |
 
 ### Resources
 
@@ -52,8 +53,17 @@ The API wraps `https://www.ncei.noaa.gov/cdo-web/api/v2/`.
 | Service | Wraps | Used By |
 |:--------|:------|:--------|
 | `CdoService` | NOAA CDO API v2 (`https://www.ncei.noaa.gov/cdo-web/api/v2/`) | All tools, both resources |
+| `StormEventsService` | NCEI Storm Events bulk CSV export (`https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/`) | `noaa_climate_search_storm_events` |
 
 **Parameter name translation.** MCP input schemas use camelCase (`datasetId`, `locationId`, `stationId`, `datatypeId`, `datacategoryId`). The CDO API requires all lowercase (`datasetid`, `locationid`, `stationid`, `datatypeid`, `datacategoryid`). `CdoService` is responsible for this translation — do not rely on the caller to pass lowercase keys.
+
+**Storm Events is a second upstream, not an extension of CDO.** `StormEventsService` shares no code with `CdoService`: there is no token, no JSON envelope, and no `resolveCollectionTotal()` — a bulk CSV result set has a known total once scanned, so `totalCount` and `exhausted` are computed directly. Three properties of the upstream shape the service:
+
+- **Filenames are discovered, never constructed.** Each year is published as `StormEvents_details-ftp_v1.0_d{year}_c{publishDate}.csv.gz`, and `{publishDate}` is whenever NCEI last republished that year — 2024 and 2025 sit at `_c20260728` while 2023 is `_c20260323`. The service reads the directory index and selects the highest `_c` date per year. A republish removes the file it supersedes, so a name held from a six-hour-old listing can 404; the service treats that as an upstream republish, drops the listing, and re-resolves once before failing.
+- **Decompression is explicit.** The files are served as `Content-Type: application/gzip` with no `Content-Encoding` header, so `fetch` returns the compressed bytes untouched. The service pipes them through `DecompressionStream('gzip')` and an incremental CSV reader, so the ~70 MB decompressed form is never materialized. A body that will not decompress — an HTML error page under HTTP 200, a truncated transfer — is reclassified as an upstream availability failure and its bytes are evicted, so a bad download cannot be replayed from cache.
+- **Damage values are magnitude-suffixed strings.** `H`/`K`/`M`/`B` suffixes, bare numbers (not always `0`), and abbreviated fractions (`.5M`) all occur; an empty cell means "not reported" and is preserved as an absent value rather than `0`, and a cell that does not parse keeps its raw text with no amount. See `src/services/storm-events/damage.ts`.
+
+**Caching bounds.** The directory listing and up to two years of compressed bytes are held for six hours, then re-fetched — NCEI republishes a year under a new `_c` suffix at any time. Two resident years stay under 30 MB: a recent bundle is about 12 MB and the largest, 2011, is 15 MB. That is the retained set, not the memory envelope — 2024 decompresses to 66.6 MB in 4,272 16 KB chunks, and a cold full-year scan of it measured 129 MB RSS at baseline against a 269 MB peak, climbing further across repeated scans. The chunk strings are transient garbage the collector reclaims, not retention, but sizing the process against the ~30 MB cache figure would be wrong.
 
 ## Config
 
@@ -70,6 +80,7 @@ The API wraps `https://www.ncei.noaa.gov/cdo-web/api/v2/`.
 5. `noaa_climate_find_stations`, `noaa_climate_get_station` — station discovery and lookup
 6. `noaa_climate_fetch_data` — observation data retrieval (most complex; requires all prior pieces)
 7. Resources: `noaa://datasets` (small, stable list), `noaa://stations/{stationId}` (wraps get_station)
+8. `StormEventsService` + `noaa_climate_search_storm_events` — second upstream (NCEI bulk CSV); independent of every step above
 
 Each step is independently testable against the live API.
 
