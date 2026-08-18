@@ -93,10 +93,10 @@ describe('noaaDatasetsResource', () => {
     const result = await noaaDatasetsResource.handler({}, ctx);
     const datasets = (result as { datasets: typeof mockDatasets }).datasets;
 
-    expect(datasets[0].id).toBe('GHCND');
-    expect(datasets[0].name).toBe('Daily Summaries');
-    expect(datasets[0].datacoverage).toBe(1);
-    expect(datasets[0].mindate).toBe('1763-01-01');
-    expect(datasets[0].maxdate).toBe('2024-12-31');
+    expect(datasets[0]!.id).toBe('GHCND');
+    expect(datasets[0]!.name).toBe('Daily Summaries');
+    expect(datasets[0]!.datacoverage).toBe(1);
+    expect(datasets[0]!.mindate).toBe('1763-01-01');
+    expect(datasets[0]!.maxdate).toBe('2024-12-31');
   });
 });
