@@ -5,6 +5,7 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { identifierFilter } from '@/mcp-server/tools/definitions/shared/validation.js';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 
 export const noaaClimateGetStation = tool('noaa_climate_get_station', {
@@ -13,12 +14,9 @@ export const noaaClimateGetStation = tool('noaa_climate_get_station', {
     'Fetch full metadata for a single weather station by its ID (e.g., "GHCND:USC00450974", "COOP:010008"). Returns name, coordinates, elevation, and the full date range for which data is available. Use when you have a station ID from noaa_climate_find_stations and want its complete details, or to verify a station before querying data.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
-    stationId: z
-      .string()
-      .min(1)
-      .describe(
-        'Station ID to fetch (e.g., "GHCND:USC00450974", "COOP:010008"). Obtain from noaa_climate_find_stations.',
-      ),
+    stationId: identifierFilter(
+      'Station ID to fetch (e.g., "GHCND:USC00450974", "COOP:010008"). Obtain from noaa_climate_find_stations.',
+    ),
   }),
   output: z.object({
     id: z.string().describe('Station ID.'),

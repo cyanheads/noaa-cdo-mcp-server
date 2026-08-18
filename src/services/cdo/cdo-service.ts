@@ -5,11 +5,7 @@
  */
 
 import type { Context } from '@cyanheads/mcp-ts-core';
-import {
-  httpErrorFromResponse,
-  requestContextService,
-  withRetry,
-} from '@cyanheads/mcp-ts-core/utils';
+import { fetchWithTimeout, requestContextService, withRetry } from '@cyanheads/mcp-ts-core/utils';
 import { getServerConfig } from '@/config/server-config.js';
 import type {
   CdoCollectionResponse,
@@ -70,8 +66,20 @@ export class CdoService {
     this.baseUrl = baseUrl;
   }
 
-  /** Make a single authenticated GET request to the CDO API, with retry. */
-  private get<T>(path: string, params: CdoListParams, ctx: Context): Promise<T> {
+  /**
+   * Make a single authenticated GET request to the CDO API, with retry.
+   *
+   * `expectedStatuses` lists non-2xx statuses that are an ordinary outcome for
+   * the endpoint rather than a fault — they log at `debug` instead of `error`.
+   * The status-mapped `McpError` is thrown either way. No CDO route needs it
+   * today; it stays for an endpoint that maps a status to an ordinary result.
+   */
+  private get<T>(
+    path: string,
+    params: CdoListParams,
+    ctx: Context,
+    expectedStatuses?: number[],
+  ): Promise<T> {
     const { token } = getServerConfig();
     const retryCtx = requestContextService.createRequestContext({
       operation: `cdo.${path}`,
@@ -88,24 +96,11 @@ export class CdoService {
         const url = `${this.baseUrl}/${path}${qs ? `?${qs}` : ''}`;
         ctx.log.debug('CDO API request', { url });
 
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-        let response: Response;
-        try {
-          response = await fetch(url, {
-            headers: { token },
-            signal: AbortSignal.any([controller.signal, ctx.signal]),
-          });
-        } finally {
-          clearTimeout(timer);
-        }
-
-        if (!response.ok) {
-          throw await httpErrorFromResponse(response, {
-            service: 'NOAA CDO',
-            data: { path },
-          });
-        }
+        const response = await fetchWithTimeout(url, REQUEST_TIMEOUT_MS, retryCtx, {
+          headers: { token },
+          signal: ctx.signal,
+          ...(expectedStatuses ? { expectedStatuses } : {}),
+        });
 
         const text = await response.text();
         if (/^\s*<(!DOCTYPE\s+html|html[\s>])/i.test(text)) {
@@ -155,7 +150,13 @@ export class CdoService {
     return this.get<CdoCollectionResponse<CdoStation>>('stations', params, ctx);
   }
 
-  /** Fetch a single station by ID. */
+  /**
+   * Fetch a single station by ID.
+   *
+   * CDO answers an unknown ID with HTTP 200 and a bare `{}`, never a 404, so
+   * this route declares no expected non-2xx statuses. The not-found path is the
+   * callers' `!station.id` check.
+   */
   getStation(stationId: string, ctx: Context): Promise<CdoStation> {
     return this.get<CdoStation>(`stations/${encodeURIComponent(stationId)}`, {}, ctx);
   }

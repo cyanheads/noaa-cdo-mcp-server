@@ -66,7 +66,7 @@ describe('noaaClimateListDatasets — service params forwarding', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDatasets.errors });
     const input = noaaClimateListDatasets.input.parse({
       stationId: 'GHCND:USC00450974',
       startDate: '2010-01-01',
@@ -90,7 +90,7 @@ describe('noaaClimateListDatasets — service params forwarding', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDatasets.errors });
     const input = noaaClimateListDatasets.input.parse({ sortField: 'name', sortOrder: 'desc' });
     await noaaClimateListDatasets.handler(input, ctx);
 
@@ -107,7 +107,7 @@ describe('noaaClimateListDatasets — error propagation', () => {
       listDatasets: vi.fn().mockRejectedValue(new Error('CDO API unavailable')),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDatasets.errors });
     const input = noaaClimateListDatasets.input.parse({});
     await expect(noaaClimateListDatasets.handler(input, ctx)).rejects.toThrow();
   });
@@ -151,7 +151,7 @@ describe('noaaClimateListDatasets — security', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDatasets.errors });
     const injection = "FIPS:37' OR '1'='1";
     const input = noaaClimateListDatasets.input.parse({ locationId: injection });
     await noaaClimateListDatasets.handler(input, ctx);
@@ -168,7 +168,7 @@ describe('noaaClimateListDatasets — security', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDatasets.errors });
     const unicodeId = 'TMAX​'; // zero-width space
     const input = noaaClimateListDatasets.input.parse({ datatypeId: [unicodeId] });
     await noaaClimateListDatasets.handler(input, ctx);

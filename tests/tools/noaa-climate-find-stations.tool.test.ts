@@ -6,6 +6,7 @@
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaClimateFindStations } from '@/mcp-server/tools/definitions/noaa-climate-find-stations.tool.js';
+import { firstText } from '../helpers/content.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -42,7 +43,7 @@ beforeEach(() => {
 
 describe('noaaClimateFindStations', () => {
   it('returns station results with coordinates and coverage', async () => {
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindStations.errors });
     const input = noaaClimateFindStations.input.parse({
       locationId: 'FIPS:53',
       datasetId: 'GHCND',
@@ -50,7 +51,7 @@ describe('noaaClimateFindStations', () => {
     const result = await noaaClimateFindStations.handler(input, ctx);
 
     expect(result.results).toHaveLength(2);
-    const yakima = result.results[0];
+    const yakima = result.results[0]!;
     expect(yakima.id).toBe('GHCND:USC00450974');
     expect(yakima.latitude).toBe(46.6039);
     expect(yakima.elevation).toBe(324.6);
@@ -66,7 +67,7 @@ describe('noaaClimateFindStations', () => {
         metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
       }),
     } as unknown as ReturnType<typeof getCdoService>);
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindStations.errors });
     const input = noaaClimateFindStations.input.parse({
       locationId: 'FIPS:99',
       datasetId: 'GHCND',
@@ -80,7 +81,7 @@ describe('noaaClimateFindStations', () => {
   });
 
   it('preserves sparse upstream payloads — omits optional coordinate fields', async () => {
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindStations.errors });
     const input = noaaClimateFindStations.input.parse({});
     const result = await noaaClimateFindStations.handler(input, ctx);
 
@@ -96,7 +97,7 @@ describe('noaaClimateFindStations', () => {
       results: mockStations,
       metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
     });
-    const text = blocks[0].text;
+    const text = firstText(blocks);
     expect(text).toContain('GHCND:USC00450974');
     expect(text).toContain('YAKIMA WA US');
     expect(text).toContain('46.6039');

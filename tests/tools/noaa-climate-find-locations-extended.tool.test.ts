@@ -8,6 +8,7 @@ import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaClimateFindLocations } from '@/mcp-server/tools/definitions/noaa-climate-find-locations.tool.js';
+import { firstText } from '../helpers/content.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -62,7 +63,7 @@ describe('noaaClimateFindLocations — all filter params forwarded', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
     const input = noaaClimateFindLocations.input.parse({
       locationCategoryId: 'ST',
       datasetId: 'GHCND',
@@ -102,7 +103,7 @@ describe('noaaClimateFindLocations — notice with category filter context', () 
       }),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
     const input = noaaClimateFindLocations.input.parse({
       locationCategoryId: 'ZIP',
       datasetId: 'GHCND',
@@ -122,7 +123,7 @@ describe('noaaClimateFindLocations — error propagation', () => {
       findLocations: vi.fn().mockRejectedValue(new Error('CDO API error')),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
     const input = noaaClimateFindLocations.input.parse({ locationCategoryId: 'ST' });
     await expect(noaaClimateFindLocations.handler(input, ctx)).rejects.toThrow();
   });
@@ -165,7 +166,7 @@ describe('noaaClimateFindLocations — format edge cases', () => {
       results: [{ id: 'FIPS:53', name: 'Washington' }],
       metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
     });
-    const text = blocks[0].text;
+    const text = firstText(blocks);
     expect(text).toContain('FIPS:53');
     expect(text).toContain('Washington');
     // No Coverage or date range since fields absent
@@ -177,15 +178,15 @@ describe('noaaClimateFindLocations — format edge cases', () => {
     const blocks = noaaClimateFindLocations.format!({
       results: [{ id: 'FIPS:37', name: 'North Carolina', datacoverage: 1 }],
     });
-    expect(blocks[0].text).toContain('100%');
+    expect(firstText(blocks)).toContain('100%');
   });
 
   it('formats date range when both mindate and maxdate are present', () => {
     const blocks = noaaClimateFindLocations.format!({
       results: [{ id: 'FIPS:37', name: 'NC', mindate: '1869-01-01', maxdate: '2024-12-31' }],
     });
-    expect(blocks[0].text).toContain('1869-01-01');
-    expect(blocks[0].text).toContain('2024-12-31');
+    expect(firstText(blocks)).toContain('1869-01-01');
+    expect(firstText(blocks)).toContain('2024-12-31');
   });
 });
 
@@ -199,7 +200,7 @@ describe('noaaClimateFindLocations — security', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
     const injection = "ST' UNION SELECT * FROM secrets--";
     const input = noaaClimateFindLocations.input.parse({ locationCategoryId: injection });
     await noaaClimateFindLocations.handler(input, ctx);
@@ -219,7 +220,7 @@ describe('noaaClimateFindLocations — security', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
     const oversized = 'A'.repeat(10_000);
     const input = noaaClimateFindLocations.input.parse({ locationCategoryId: oversized });
     await noaaClimateFindLocations.handler(input, ctx);

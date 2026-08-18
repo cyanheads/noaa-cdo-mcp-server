@@ -5,7 +5,12 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+import {
+  identifierFilter,
+  isoDateFilter,
+} from '@/mcp-server/tools/definitions/shared/validation.js';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
+import { resolveCollectionTotal } from '@/services/cdo/pagination.js';
 
 export const noaaClimateListDataCategories = tool('noaa_climate_list_data_categories', {
   title: 'List NOAA Climate Data Categories',
@@ -13,30 +18,21 @@ export const noaaClimateListDataCategories = tool('noaa_climate_list_data_catego
     'List data categories that group related data types — Temperature, Precipitation, Wind, Pressure, Sunshine, Sky cover, Weather Type, and more. Use to discover what types of measurements are available before calling noaa_climate_list_data_types. Optionally filter by dataset, location, station, or date range. There are 42 categories in total.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
-    datasetId: z
-      .string()
-      .optional()
-      .describe(
-        'Filter to categories available in this dataset (e.g., "GHCND", "GSOM"). Optional.',
-      ),
-    locationId: z
-      .string()
-      .optional()
-      .describe('Filter to categories available at this location ID. Optional.'),
-    stationId: z
-      .string()
-      .optional()
-      .describe('Filter to categories available at this station ID. Optional.'),
-    startDate: z
-      .string()
-      .optional()
-      .describe('Filter to categories with data on or after this ISO date (YYYY-MM-DD). Optional.'),
-    endDate: z
-      .string()
-      .optional()
-      .describe(
-        'Filter to categories with data on or before this ISO date (YYYY-MM-DD). Optional.',
-      ),
+    datasetId: identifierFilter(
+      'Filter to categories available in this dataset (e.g., "GHCND", "GSOM"). Optional.',
+    ).optional(),
+    locationId: identifierFilter(
+      'Filter to categories available at this location ID. Optional.',
+    ).optional(),
+    stationId: identifierFilter(
+      'Filter to categories available at this station ID. Optional.',
+    ).optional(),
+    startDate: isoDateFilter(
+      'Filter to categories with data on or after this ISO date (YYYY-MM-DD). Optional.',
+    ).optional(),
+    endDate: isoDateFilter(
+      'Filter to categories with data on or before this ISO date (YYYY-MM-DD). Optional.',
+    ).optional(),
     sortField: z.enum(['id', 'name']).optional().describe('Sort results by this field. Optional.'),
     sortOrder: z
       .enum(['asc', 'desc'])
@@ -87,6 +83,12 @@ export const noaaClimateListDataCategories = tool('noaa_climate_list_data_catego
     totalCount: z
       .number()
       .describe('Total number of matching data categories before the page limit.'),
+    exhausted: z
+      .boolean()
+      .optional()
+      .describe(
+        'True when the requested offset is past the end of a non-empty result set — the page is empty but matches exist. Omitted otherwise.',
+      ),
     notice: z
       .string()
       .optional()
@@ -119,37 +121,42 @@ export const noaaClimateListDataCategories = tool('noaa_climate_list_data_catego
     });
 
     const service = getCdoService();
+    const params = {
+      datasetid: input.datasetId,
+      locationid: input.locationId,
+      stationid: input.stationId,
+      startdate: input.startDate,
+      enddate: input.endDate,
+      sortfield: input.sortField,
+      sortorder: input.sortOrder,
+      limit: input.limit,
+      offset: input.offset,
+    };
     let response: Awaited<ReturnType<typeof service.listDataCategories>>;
     try {
-      response = await service.listDataCategories(
-        {
-          datasetid: input.datasetId,
-          locationid: input.locationId,
-          stationid: input.stationId,
-          startdate: input.startDate,
-          enddate: input.endDate,
-          sortfield: input.sortField,
-          sortorder: input.sortOrder,
-          limit: input.limit,
-          offset: input.offset,
-        },
-        ctx,
-      );
+      response = await service.listDataCategories(params, ctx);
     } catch (err) {
       if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
-        throw ctx.fail('validation_error', err.message, {
-          recovery: {
-            hint: 'Verify filter IDs — use noaa_climate_list_datasets to list valid datasetId values.',
-          },
-        });
+        throw ctx.fail('validation_error', err.message, ctx.recoveryFor('validation_error'));
       }
       throw err;
     }
 
     const results = response.results ?? [];
-    const totalCount = response.metadata?.resultset.count ?? results.length;
+    const { totalCount, exhausted } = await resolveCollectionTotal(
+      response,
+      params,
+      ctx,
+      (probeParams, probeCtx) => service.listDataCategories(probeParams, probeCtx),
+    );
     ctx.enrich.total(totalCount);
-    if (results.length === 0) {
+    // ctx.enrich.notice is last-wins — exactly one of these branches may fire.
+    if (exhausted) {
+      ctx.enrich({ exhausted: true });
+      ctx.enrich.notice(
+        `Page is empty because offset ${input.offset} is past the end of ${totalCount} matching data categories. Lower offset or reset it to 0.`,
+      );
+    } else if (results.length === 0) {
       ctx.enrich.notice(
         'No data categories matched the applied filters. Try removing location, station, or date range filters to see all available categories.',
       );
@@ -170,7 +177,7 @@ export const noaaClimateListDataCategories = tool('noaa_climate_list_data_catego
       );
     }
     if (result.results.length === 0) {
-      lines.push('\n_No categories matched the filters._');
+      lines.push('\n_No records on this page._');
       return [{ type: 'text', text: lines.join('\n') }];
     }
     lines.push('');

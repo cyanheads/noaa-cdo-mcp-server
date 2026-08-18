@@ -60,7 +60,7 @@ describe('noaaClimateListDataTypes — params forwarding', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDataTypes.errors });
     const input = noaaClimateListDataTypes.input.parse({
       datasetId: 'GHCND',
       locationId: 'FIPS:37',
@@ -99,7 +99,7 @@ describe('noaaClimateListDataTypes — error propagation', () => {
       listDataTypes: vi.fn().mockRejectedValue(new Error('CDO API error')),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDataTypes.errors });
     const input = noaaClimateListDataTypes.input.parse({ datasetId: 'GHCND' });
     await expect(noaaClimateListDataTypes.handler(input, ctx)).rejects.toThrow();
   });
@@ -143,7 +143,7 @@ describe('noaaClimateListDataTypes — security', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDataTypes.errors });
     const injection = 'GHCND; DROP TABLE datatypes; --';
     const input = noaaClimateListDataTypes.input.parse({ datasetId: injection });
     await noaaClimateListDataTypes.handler(input, ctx);

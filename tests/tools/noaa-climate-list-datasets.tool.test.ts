@@ -6,6 +6,7 @@
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaClimateListDatasets } from '@/mcp-server/tools/definitions/noaa-climate-list-datasets.tool.js';
+import { firstText } from '../helpers/content.js';
 
 // Mock the service module so tests don't hit the network
 vi.mock('@/services/cdo/cdo-service.js', () => ({
@@ -44,7 +45,7 @@ beforeEach(() => {
 
 describe('noaaClimateListDatasets', () => {
   it('returns dataset results with metadata', async () => {
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDatasets.errors });
     const input = noaaClimateListDatasets.input.parse({});
     const result = await noaaClimateListDatasets.handler(input, ctx);
 
@@ -66,7 +67,7 @@ describe('noaaClimateListDatasets', () => {
         .mockResolvedValue({ metadata: { resultset: { count: 0, limit: 25, offset: 0 } } }),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDatasets.errors });
     const input = noaaClimateListDatasets.input.parse({});
     const result = await noaaClimateListDatasets.handler(input, ctx);
 
@@ -84,7 +85,7 @@ describe('noaaClimateListDatasets', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDatasets.errors });
     const input = noaaClimateListDatasets.input.parse({
       datatypeId: ['TMAX'],
       locationId: 'FIPS:37',
@@ -103,8 +104,8 @@ describe('noaaClimateListDatasets', () => {
       results: mockDatasets,
       metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
     });
-    expect(blocks[0].type).toBe('text');
-    const text = blocks[0].text;
+    expect(blocks[0]?.type).toBe('text');
+    const text = firstText(blocks);
     expect(text).toContain('GHCND');
     expect(text).toContain('Daily Summaries');
     expect(text).toContain('1763-01-01');
@@ -113,11 +114,11 @@ describe('noaaClimateListDatasets', () => {
     expect(text).toContain('0'); // offset
   });
 
-  it('formats empty results with a fallback message', () => {
+  it('formats empty results with a neutral empty-page message', () => {
     const blocks = noaaClimateListDatasets.format!({
       results: [],
       metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
     });
-    expect(blocks[0].text).toContain('No datasets');
+    expect(firstText(blocks)).toContain('No records on this page.');
   });
 });

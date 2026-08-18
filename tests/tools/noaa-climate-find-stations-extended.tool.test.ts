@@ -8,6 +8,7 @@ import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaClimateFindStations } from '@/mcp-server/tools/definitions/noaa-climate-find-stations.tool.js';
+import { firstText } from '../helpers/content.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -64,7 +65,7 @@ describe('noaaClimateFindStations — params forwarding', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindStations.errors });
     const input = noaaClimateFindStations.input.parse({
       extent: '47.5,-122.4,47.7,-122.1',
     });
@@ -85,7 +86,7 @@ describe('noaaClimateFindStations — params forwarding', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindStations.errors });
     const input = noaaClimateFindStations.input.parse({
       datatypeId: ['TMAX', 'TMIN', 'PRCP'],
     });
@@ -106,7 +107,7 @@ describe('noaaClimateFindStations — params forwarding', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindStations.errors });
     const input = noaaClimateFindStations.input.parse({
       locationId: 'FIPS:53',
       datasetId: 'GHCND',
@@ -146,7 +147,7 @@ describe('noaaClimateFindStations — notice message with filters', () => {
       }),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindStations.errors });
     const input = noaaClimateFindStations.input.parse({
       locationId: 'FIPS:99',
       datasetId: 'GHCND',
@@ -169,19 +170,19 @@ describe('noaaClimateFindStations — format output', () => {
       results: [{ id: 'GHCND:SPARSE', name: 'Sparse Station' }],
       metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
     });
-    const text = blocks[0].text;
+    const text = firstText(blocks);
     expect(text).toContain('GHCND:SPARSE');
     expect(text).toContain('Sparse Station');
     // No coordinate line since lat/lon absent
     expect(text).not.toContain('Coords/Elevation:');
   });
 
-  it('formats empty station list with fallback message', () => {
+  it('formats an empty station list with a neutral empty-page message', () => {
     const blocks = noaaClimateFindStations.format!({
       results: [],
       metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
     });
-    expect(blocks[0].text).toContain('No stations');
+    expect(firstText(blocks)).toContain('No records on this page.');
   });
 
   it('format includes data coverage percentage', () => {
@@ -189,7 +190,7 @@ describe('noaaClimateFindStations — format output', () => {
       results: [defaultStation],
       metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
     });
-    expect(blocks[0].text).toContain('99%');
+    expect(firstText(blocks)).toContain('99%');
   });
 
   it('format includes data range when both mindate and maxdate are present', () => {
@@ -197,8 +198,8 @@ describe('noaaClimateFindStations — format output', () => {
       results: [defaultStation],
       metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
     });
-    expect(blocks[0].text).toContain('1948-01-01');
-    expect(blocks[0].text).toContain('2024-12-31');
+    expect(firstText(blocks)).toContain('1948-01-01');
+    expect(firstText(blocks)).toContain('2024-12-31');
   });
 });
 
@@ -245,7 +246,7 @@ describe('noaaClimateFindStations — security', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindStations.errors });
     const injection = "FIPS:37' OR '1'='1";
     const input = noaaClimateFindStations.input.parse({ locationId: injection });
     await noaaClimateFindStations.handler(input, ctx);

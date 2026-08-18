@@ -6,6 +6,7 @@
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaClimateGetStation } from '@/mcp-server/tools/definitions/noaa-climate-get-station.tool.js';
+import { firstText } from '../helpers/content.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -70,7 +71,7 @@ describe('noaaClimateGetStation', () => {
 
   it('formats output with all known fields', () => {
     const blocks = noaaClimateGetStation.format!({ ...mockStation });
-    const text = blocks[0].text;
+    const text = firstText(blocks);
     expect(text).toContain('YAKIMA WA US');
     expect(text).toContain('GHCND:USC00450974');
     expect(text).toContain('46.6039');
@@ -83,7 +84,7 @@ describe('noaaClimateGetStation', () => {
 
   it('formats sparse station showing "Not available" for missing fields', () => {
     const blocks = noaaClimateGetStation.format!({ id: 'GHCND:X', name: 'Sparse' });
-    const text = blocks[0].text;
+    const text = firstText(blocks);
     expect(text).toContain('GHCND:X');
     expect(text).toContain('Sparse');
     expect(text).toContain('Not available');

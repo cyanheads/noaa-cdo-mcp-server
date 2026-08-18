@@ -6,6 +6,7 @@
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaClimateFindLocations } from '@/mcp-server/tools/definitions/noaa-climate-find-locations.tool.js';
+import { firstText } from '../helpers/content.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -35,7 +36,7 @@ beforeEach(() => {
 
 describe('noaaClimateFindLocations', () => {
   it('returns location results', async () => {
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
     const input = noaaClimateFindLocations.input.parse({ locationCategoryId: 'ST' });
     const result = await noaaClimateFindLocations.handler(input, ctx);
 
@@ -52,7 +53,7 @@ describe('noaaClimateFindLocations', () => {
         metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
       }),
     } as unknown as ReturnType<typeof getCdoService>);
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
     const input = noaaClimateFindLocations.input.parse({ locationCategoryId: 'ZIP' });
     await noaaClimateFindLocations.handler(input, ctx);
 
@@ -71,7 +72,7 @@ describe('noaaClimateFindLocations', () => {
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
     const input = noaaClimateFindLocations.input.parse({
       locationCategoryId: 'CITY',
       limit: 10,
@@ -86,7 +87,7 @@ describe('noaaClimateFindLocations', () => {
   });
 
   it('preserves sparse upstream payloads — omits optional fields', async () => {
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateFindLocations.errors });
     const input = noaaClimateFindLocations.input.parse({});
     const result = await noaaClimateFindLocations.handler(input, ctx);
 
@@ -100,7 +101,7 @@ describe('noaaClimateFindLocations', () => {
       results: mockLocations,
       metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
     });
-    const text = blocks[0].text;
+    const text = firstText(blocks);
     expect(text).toContain('FIPS:37');
     expect(text).toContain('North Carolina');
     expect(text).toContain('0'); // offset

@@ -5,7 +5,14 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+import {
+  identifierArrayFilter,
+  identifierFilter,
+  isoDateFilter,
+  toUtcMillis,
+} from '@/mcp-server/tools/definitions/shared/validation.js';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
+import { resolveCollectionTotal } from '@/services/cdo/pagination.js';
 
 /** Datasets limited to 1-year date ranges per request. */
 const DAILY_DATASETS = new Set(['GHCND', 'PRECIP_15', 'PRECIP_HLY', 'NORMAL_DLY', 'NORMAL_HLY']);
@@ -24,10 +31,16 @@ function maxRangeForDataset(datasetId: string): number | undefined {
   return;
 }
 
-/** Count calendar days between two ISO date strings (inclusive). */
+/**
+ * Count calendar days between two validated CDO date strings (inclusive).
+ *
+ * Both ends are normalized to UTC first: the bare-date and datetime forms the
+ * schema accepts otherwise parse against different timelines, which shifts the
+ * count by the host's UTC offset and can flip a range sitting on the limit.
+ */
 function daysBetween(start: string, end: string): number {
   const msPerDay = 86_400_000;
-  return Math.round((new Date(end).getTime() - new Date(start).getTime()) / msPerDay) + 1;
+  return Math.round((toUtcMillis(end) - toUtcMillis(start)) / msPerDay) + 1;
 }
 
 export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
@@ -36,40 +49,24 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
     'Fetch historical observation records from a NOAA CDO dataset for a given date range. Requires datasetId (e.g., GHCND for daily, GSOM for monthly), startDate, and endDate. Optionally scope to specific stations, locations, and data types. Date range limits per request: sub-daily and daily datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) are limited to 1 year; monthly and annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) are limited to 10 years. For climate normals (NORMAL_*), use startDate=2010-01-01 and endDate=2010-12-31 — that is the API proxy year regardless of which 30-year period is being described. Returns flat tuples of { date, datatype, station, value, attributes }. Strongly recommended: pass units=metric or units=standard — without it, GHCND values are raw tenths-of-unit integers (TMAX=256 = 25.6°C, PRCP=12 = 1.2mm). GSOM/GSOY are already scaled.',
   annotations: { readOnlyHint: true, openWorldHint: true },
   input: z.object({
-    datasetId: z
-      .string()
-      .min(1)
-      .describe(
-        'Dataset ID to query (e.g., GHCND for daily data, GSOM for monthly, GSOY for annual, NORMAL_DLY/MLY/ANN/HLY for 1981–2010 climate normals). Determines date range limit: GHCND/PRECIP_*/NORMAL_DLY/NORMAL_HLY allow 1-year max per request; GSOM/GSOY/NORMAL_MLY/NORMAL_ANN allow 10-year max.',
-      ),
-    startDate: z
-      .string()
-      .describe(
-        'Start date for observations (YYYY-MM-DD). For NORMAL_* datasets use 2010-01-01 regardless of the years being analyzed — 2010 is the API proxy year for all normals.',
-      ),
-    endDate: z
-      .string()
-      .describe(
-        'End date for observations (YYYY-MM-DD). Must be within 1 year of startDate for sub-daily/daily datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) or within 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN). For any NORMAL_* dataset use 2010-12-31.',
-      ),
-    stationId: z
-      .array(z.string())
-      .optional()
-      .describe(
-        'One or more station IDs to filter by (e.g., ["GHCND:USC00450974"]). Obtain from noaa_climate_find_stations. Multiple IDs return comparative readings across stations. Optional.',
-      ),
-    locationId: z
-      .array(z.string())
-      .optional()
-      .describe(
-        'One or more location IDs to filter by (e.g., ["FIPS:37", "ZIP:98101"]). Broader than stationId — returns data from all stations within the location. Optional.',
-      ),
-    datatypeId: z
-      .array(z.string())
-      .optional()
-      .describe(
-        'One or more data type IDs to include (e.g., ["TMAX", "TMIN", "PRCP"]). Without this, all data types for the dataset are returned. Use noaa_climate_list_data_types to discover valid IDs. Optional.',
-      ),
+    datasetId: identifierFilter(
+      'Dataset ID to query (e.g., GHCND for daily data, GSOM for monthly, GSOY for annual, NORMAL_DLY/MLY/ANN/HLY for 1981–2010 climate normals). Determines date range limit: GHCND/PRECIP_*/NORMAL_DLY/NORMAL_HLY allow 1-year max per request; GSOM/GSOY/NORMAL_MLY/NORMAL_ANN allow 10-year max.',
+    ),
+    startDate: isoDateFilter(
+      'Start date for observations (YYYY-MM-DD). For NORMAL_* datasets use 2010-01-01 regardless of the years being analyzed — 2010 is the API proxy year for all normals.',
+    ),
+    endDate: isoDateFilter(
+      'End date for observations (YYYY-MM-DD). Must be within 1 year of startDate for sub-daily/daily datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) or within 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN). For any NORMAL_* dataset use 2010-12-31.',
+    ),
+    stationId: identifierArrayFilter(
+      'One or more station IDs to filter by (e.g., ["GHCND:USC00450974"]). Obtain from noaa_climate_find_stations. Multiple IDs return comparative readings across stations. Optional.',
+    ).optional(),
+    locationId: identifierArrayFilter(
+      'One or more location IDs to filter by (e.g., ["FIPS:37", "ZIP:98101"]). Broader than stationId — returns data from all stations within the location. Optional.',
+    ).optional(),
+    datatypeId: identifierArrayFilter(
+      'One or more data type IDs to include (e.g., ["TMAX", "TMIN", "PRCP"]). Without this, all data types for the dataset are returned. Use noaa_climate_list_data_types to discover valid IDs. Optional.',
+    ).optional(),
     units: z
       .enum(['standard', 'metric'])
       .optional()
@@ -148,6 +145,12 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
       .describe(
         'Summary of the effective query: dataset, date range, units, and any station/location/datatype filters applied.',
       ),
+    exhausted: z
+      .boolean()
+      .optional()
+      .describe(
+        'True when the requested offset is past the end of a non-empty result set — the page is empty but matches exist. Omitted otherwise.',
+      ),
     notice: z
       .string()
       .optional()
@@ -205,6 +208,23 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
       );
     }
 
+    // Cross-field rule: must be a handler check, not a schema .refine(). Input
+    // parsing runs before ctx exists, so a schema-level rejection would bypass
+    // the declared validation_error contract and surface as a bare InvalidParams.
+    if (toUtcMillis(input.startDate) > toUtcMillis(input.endDate)) {
+      throw ctx.fail(
+        'validation_error',
+        `startDate "${input.startDate}" is after endDate "${input.endDate}".`,
+        {
+          startDate: input.startDate,
+          endDate: input.endDate,
+          recovery: {
+            hint: 'Swap the values so startDate is on or before endDate, then retry.',
+          },
+        },
+      );
+    }
+
     // Validate date range against known dataset limits
     const maxDays = maxRangeForDataset(input.datasetId);
     if (maxDays !== undefined) {
@@ -227,32 +247,26 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
     }
 
     const service = getCdoService();
+    const params = {
+      datasetid: input.datasetId,
+      startdate: input.startDate,
+      enddate: input.endDate,
+      stationid: input.stationId,
+      locationid: input.locationId,
+      datatypeid: input.datatypeId,
+      units: input.units,
+      includemetadata: true,
+      sortfield: input.sortField,
+      sortorder: input.sortOrder,
+      limit: input.limit,
+      offset: input.offset,
+    };
     let response: Awaited<ReturnType<typeof service.fetchData>>;
     try {
-      response = await service.fetchData(
-        {
-          datasetid: input.datasetId,
-          startdate: input.startDate,
-          enddate: input.endDate,
-          stationid: input.stationId,
-          locationid: input.locationId,
-          datatypeid: input.datatypeId,
-          units: input.units,
-          includemetadata: input.includemetadata,
-          sortfield: input.sortField,
-          sortorder: input.sortOrder,
-          limit: input.limit,
-          offset: input.offset,
-        },
-        ctx,
-      );
+      response = await service.fetchData(params, ctx);
     } catch (err) {
       if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
-        throw ctx.fail('validation_error', err.message, {
-          recovery: {
-            hint: 'Verify the datasetId, date format (YYYY-MM-DD), and all filter IDs. Use noaa_climate_list_datasets, noaa_climate_find_stations, and noaa_climate_list_data_types to confirm valid IDs.',
-          },
-        });
+        throw ctx.fail('validation_error', err.message, ctx.recoveryFor('validation_error'));
       }
       throw err;
     }
@@ -265,7 +279,12 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
       ...(rec.attributes && { attributes: rec.attributes }),
     }));
 
-    const totalCount = response.metadata?.resultset.count ?? results.length;
+    const { totalCount, exhausted } = await resolveCollectionTotal(
+      response,
+      params,
+      ctx,
+      (probeParams, probeCtx) => service.fetchData(probeParams, probeCtx),
+    );
     ctx.enrich.total(totalCount);
 
     // Build effective-query summary for the agent
@@ -280,7 +299,13 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
     const effectiveQuery = queryParts.join(', ');
     ctx.enrich.echo(effectiveQuery);
 
-    if (results.length === 0) {
+    // ctx.enrich.notice is last-wins — exactly one of these branches may fire.
+    if (exhausted) {
+      ctx.enrich({ exhausted: true });
+      ctx.enrich.notice(
+        `Page is empty because offset ${input.offset} is past the end of ${totalCount} matching records. Lower offset or reset it to 0.`,
+      );
+    } else if (results.length === 0) {
       ctx.enrich.notice(
         `No observation records found for ${effectiveQuery}. Verify the station has data for this dataset and date range using noaa_climate_find_stations, or try a different datatypeId.`,
       );
@@ -288,7 +313,9 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
 
     return {
       results,
-      metadata: response.metadata,
+      // input.includemetadata gates only this tool's output. Never synthesize a
+      // metadata object CDO did not send (an exhausted page carries none).
+      ...(input.includemetadata && response.metadata && { metadata: response.metadata }),
     };
   },
 
@@ -301,7 +328,7 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
       );
     }
     if (result.results.length === 0) {
-      lines.push('\n_No observation records matched the query._');
+      lines.push('\n_No records on this page._');
       return [{ type: 'text', text: lines.join('\n') }];
     }
     lines.push('');

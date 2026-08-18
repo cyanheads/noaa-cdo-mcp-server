@@ -6,6 +6,7 @@
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaClimateListDataCategories } from '@/mcp-server/tools/definitions/noaa-climate-list-data-categories.tool.js';
+import { firstText } from '../helpers/content.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -29,7 +30,7 @@ beforeEach(() => {
 
 describe('noaaClimateListDataCategories', () => {
   it('returns category results', async () => {
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDataCategories.errors });
     const input = noaaClimateListDataCategories.input.parse({});
     const result = await noaaClimateListDataCategories.handler(input, ctx);
 
@@ -44,7 +45,7 @@ describe('noaaClimateListDataCategories', () => {
       listDataCategories: vi.fn().mockResolvedValue({}),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDataCategories.errors });
     const input = noaaClimateListDataCategories.input.parse({});
     const result = await noaaClimateListDataCategories.handler(input, ctx);
 
@@ -60,8 +61,8 @@ describe('noaaClimateListDataCategories', () => {
       results: mockCategories,
       metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
     });
-    expect(blocks[0].type).toBe('text');
-    const text = blocks[0].text;
+    expect(blocks[0]?.type).toBe('text');
+    const text = firstText(blocks);
     expect(text).toContain('TEMP');
     expect(text).toContain('Air Temperature');
     expect(text).toContain('PRCP');
@@ -69,11 +70,11 @@ describe('noaaClimateListDataCategories', () => {
     expect(text).toContain('0'); // offset
   });
 
-  it('formats empty results with a fallback message', () => {
+  it('formats empty results with a neutral empty-page message', () => {
     const blocks = noaaClimateListDataCategories.format!({
       results: [],
       metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
     });
-    expect(blocks[0].text).toContain('No categories');
+    expect(firstText(blocks)).toContain('No records on this page.');
   });
 });

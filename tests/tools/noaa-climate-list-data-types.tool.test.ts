@@ -6,6 +6,7 @@
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaClimateListDataTypes } from '@/mcp-server/tools/definitions/noaa-climate-list-data-types.tool.js';
+import { firstText } from '../helpers/content.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -35,7 +36,7 @@ beforeEach(() => {
 
 describe('noaaClimateListDataTypes', () => {
   it('returns data type results with optional fields', async () => {
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDataTypes.errors });
     const input = noaaClimateListDataTypes.input.parse({ datasetId: 'GHCND' });
     const result = await noaaClimateListDataTypes.handler(input, ctx);
 
@@ -45,7 +46,7 @@ describe('noaaClimateListDataTypes', () => {
       name: 'Maximum temperature',
       datacoverage: 0.99,
     });
-    expect(result.results[0].mindate).toBe('1763-01-01');
+    expect(result.results[0]!.mindate).toBe('1763-01-01');
     expect(getEnrichment(ctx)).toMatchObject({ totalCount: 2 });
     expect(getEnrichment(ctx)).not.toHaveProperty('notice');
   });
@@ -57,7 +58,7 @@ describe('noaaClimateListDataTypes', () => {
         metadata: { resultset: { count: 0, limit: 25, offset: 0 } },
       }),
     } as unknown as ReturnType<typeof getCdoService>);
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDataTypes.errors });
     const input = noaaClimateListDataTypes.input.parse({ datasetId: 'UNKNOWN' });
     await noaaClimateListDataTypes.handler(input, ctx);
 
@@ -68,7 +69,7 @@ describe('noaaClimateListDataTypes', () => {
   });
 
   it('preserves sparse upstream payloads — omits optional fields when absent', async () => {
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDataTypes.errors });
     const input = noaaClimateListDataTypes.input.parse({});
     const result = await noaaClimateListDataTypes.handler(input, ctx);
 
@@ -92,7 +93,7 @@ describe('noaaClimateListDataTypes', () => {
       ],
       metadata: { resultset: { count: 1, limit: 25, offset: 0 } },
     });
-    const text = blocks[0].text;
+    const text = firstText(blocks);
     expect(text).toContain('TMAX');
     expect(text).toContain('Maximum temperature');
     expect(text).toContain('99%');
@@ -103,7 +104,7 @@ describe('noaaClimateListDataTypes', () => {
     const blocks = noaaClimateListDataTypes.format!({
       results: [{ id: 'PRCP', name: 'Precipitation' }],
     });
-    const text = blocks[0].text;
+    const text = firstText(blocks);
     expect(text).toContain('PRCP');
     expect(text).not.toContain('Coverage');
     expect(text).not.toContain('Range');

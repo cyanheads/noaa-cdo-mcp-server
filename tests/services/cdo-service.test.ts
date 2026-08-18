@@ -60,7 +60,7 @@ describe('CdoService — successful responses', () => {
     const result = await service.listDatasets({}, ctx);
 
     expect(result.results).toHaveLength(1);
-    expect(result.results![0].id).toBe('GHCND');
+    expect(result.results![0]!.id).toBe('GHCND');
   });
 
   it('findStations returns parsed JSON on 200', async () => {
@@ -74,7 +74,7 @@ describe('CdoService — successful responses', () => {
     const ctx = createMockContext();
     const result = await service.findStations({ locationid: 'FIPS:53' }, ctx);
 
-    expect(result.results![0].id).toBe('GHCND:USC00450974');
+    expect(result.results![0]!.id).toBe('GHCND:USC00450974');
   });
 
   it('getStation constructs the correct URL with encoded stationId', async () => {
@@ -85,7 +85,7 @@ describe('CdoService — successful responses', () => {
     const ctx = createMockContext();
     await service.getStation('GHCND:USC00450974', ctx);
 
-    const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
     expect(calledUrl).toContain('stations/GHCND%3AUSC00450974');
   });
 
@@ -96,7 +96,7 @@ describe('CdoService — successful responses', () => {
     const ctx = createMockContext();
     await service.listDatasets({}, ctx);
 
-    const calledOptions = vi.mocked(fetch).mock.calls[0][1] as RequestInit;
+    const calledOptions = vi.mocked(fetch).mock.calls[0]![1] as RequestInit;
     expect((calledOptions.headers as Record<string, string>).token).toBe('test-token-1234');
   });
 });
@@ -182,7 +182,7 @@ describe('CdoService — URL and query parameter construction', () => {
     const ctx = createMockContext();
     await service.listDatasets({ offset: 0 }, ctx);
 
-    const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
     expect(calledUrl).toContain('offset=1');
   });
 
@@ -193,7 +193,7 @@ describe('CdoService — URL and query parameter construction', () => {
     const ctx = createMockContext();
     await service.listDatasets({ offset: 24 }, ctx);
 
-    const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
     expect(calledUrl).toContain('offset=25');
   });
 
@@ -204,7 +204,7 @@ describe('CdoService — URL and query parameter construction', () => {
     const ctx = createMockContext();
     await service.findStations({ stationid: ['GHCND:A', 'GHCND:B'] }, ctx);
 
-    const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
     expect(calledUrl).toContain('stationid=GHCND%3AA');
     expect(calledUrl).toContain('stationid=GHCND%3AB');
   });
@@ -216,7 +216,7 @@ describe('CdoService — URL and query parameter construction', () => {
     const ctx = createMockContext();
     await service.listDatasets({ datasetid: undefined, limit: 10 }, ctx);
 
-    const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
     expect(calledUrl).not.toContain('datasetid');
     expect(calledUrl).toContain('limit=10');
   });
@@ -228,7 +228,7 @@ describe('CdoService — URL and query parameter construction', () => {
     const ctx = createMockContext();
     await service.fetchData({ datasetid: 'GHCND', includemetadata: false }, ctx);
 
-    const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
     expect(calledUrl).toContain('includemetadata=false');
   });
 
@@ -239,7 +239,7 @@ describe('CdoService — URL and query parameter construction', () => {
     const ctx = createMockContext();
     await service.findStations({ stationid: ['', 'GHCND:A'] }, ctx);
 
-    const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
     // Empty string should be skipped; only GHCND:A should appear
     const occurrences = (calledUrl.match(/stationid=/g) ?? []).length;
     expect(occurrences).toBe(1);
@@ -272,7 +272,7 @@ describe('CdoService — security: token never in output', () => {
     // The handler propagates the service error — it is the service's
     // responsibility. The CdoService itself should not inject the token.
     // We verify the token does not appear in the URL (already authenticated via header).
-    const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+    const calledUrl = vi.mocked(fetch).mock.calls[0]![0] as string;
     expect(calledUrl).not.toContain('test-token-1234');
   });
 });

@@ -59,7 +59,7 @@ describe('noaaClimateListDataCategories — all filter params forwarded', () => 
     } as unknown as ReturnType<typeof getCdoService>;
     vi.mocked(getCdoService).mockReturnValue(mockService);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDataCategories.errors });
     const input = noaaClimateListDataCategories.input.parse({
       datasetId: 'GHCND',
       locationId: 'FIPS:37',
@@ -96,7 +96,7 @@ describe('noaaClimateListDataCategories — error propagation', () => {
       listDataCategories: vi.fn().mockRejectedValue(new Error('CDO unavailable')),
     } as unknown as ReturnType<typeof getCdoService>);
 
-    const ctx = createMockContext();
+    const ctx = createMockContext({ errors: noaaClimateListDataCategories.errors });
     const input = noaaClimateListDataCategories.input.parse({});
     await expect(noaaClimateListDataCategories.handler(input, ctx)).rejects.toThrow();
   });

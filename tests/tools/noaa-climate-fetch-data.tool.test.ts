@@ -6,6 +6,7 @@
 import { createMockContext, getEnrichment } from '@cyanheads/mcp-ts-core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { noaaClimateFetchData } from '@/mcp-server/tools/definitions/noaa-climate-fetch-data.tool.js';
+import { firstText } from '../helpers/content.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -184,7 +185,7 @@ describe('noaaClimateFetchData', () => {
       results: mockRecords,
       metadata: { resultset: { count: 2, limit: 25, offset: 0 } },
     });
-    const text = blocks[0].text;
+    const text = firstText(blocks);
     expect(text).toContain('2023-01-01T00:00:00');
     expect(text).toContain('TMAX');
     expect(text).toContain('GHCND:USC00450974');
@@ -193,8 +194,10 @@ describe('noaaClimateFetchData', () => {
     expect(text).toContain('0'); // offset
   });
 
-  it('formats empty results with a fallback message', () => {
+  it('formats empty results with a neutral empty-page message', () => {
     const blocks = noaaClimateFetchData.format!({ results: [] });
-    expect(blocks[0].text).toContain('No observation records');
+    // format() cannot see `exhausted` — the line has to hold for a no-match
+    // page and for a page past the end of a nonzero total alike.
+    expect(firstText(blocks)).toContain('No records on this page.');
   });
 });
