@@ -8,6 +8,7 @@ import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import {
   identifierFilter,
   isoDateFilter,
+  toCdoWireDate,
 } from '@/mcp-server/tools/definitions/shared/validation.js';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 import { resolveCollectionTotal } from '@/services/cdo/pagination.js';
@@ -125,8 +126,8 @@ export const noaaClimateListDataCategories = tool('noaa_climate_list_data_catego
       datasetid: input.datasetId,
       locationid: input.locationId,
       stationid: input.stationId,
-      startdate: input.startDate,
-      enddate: input.endDate,
+      startdate: toCdoWireDate(input.startDate),
+      enddate: toCdoWireDate(input.endDate),
       sortfield: input.sortField,
       sortorder: input.sortOrder,
       limit: input.limit,

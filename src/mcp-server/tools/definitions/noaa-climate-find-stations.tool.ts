@@ -9,6 +9,7 @@ import {
   identifierArrayFilter,
   identifierFilter,
   isoDateFilter,
+  toCdoWireDate,
 } from '@/mcp-server/tools/definitions/shared/validation.js';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 import { resolveCollectionTotal } from '@/services/cdo/pagination.js';
@@ -16,11 +17,11 @@ import { resolveCollectionTotal } from '@/services/cdo/pagination.js';
 export const noaaClimateFindStations = tool('noaa_climate_find_stations', {
   title: 'Find NOAA Climate Stations',
   description:
-    'Search for weather observation stations by location, bounding box, dataset, and data type. Returns station IDs, names, coordinates, elevation, and data coverage dates. Filter by locationId (e.g., "FIPS:37" for all NC stations), extent (lat/lon bounding box), datasetId, datatypeId, and date range. Station IDs returned here are used as stationId in noaa_climate_fetch_data. A station must have data for the dataset and date range you want — filter by datasetId and startDate/endDate to ensure compatibility. Common station ID formats: GHCND:USC00450974, COOP:010008.',
+    'Search for weather observation stations by location, bounding box, dataset, and data type. Returns station IDs, names, coordinates, elevation, and data coverage dates. Filter by locationId (e.g., "FIPS:37" for all NC stations), extent (lat/lon bounding box), datasetId, datatypeId, and date range. Station IDs returned here are used as stationId in noaa_climate_fetch_data. A station must have data for the dataset and date range you want — filter by datasetId and startDate/endDate to ensure compatibility. Common station ID formats: GHCND:USW00024233, COOP:010008.',
   annotations: { readOnlyHint: true, openWorldHint: true },
   input: z.object({
     locationId: identifierFilter(
-      'Filter to stations within this location ID (e.g., "FIPS:37" for NC, "CITY:US530031" for Seattle). Obtain from noaa_climate_find_locations. Optional.',
+      'Filter to stations within this location ID (e.g., "FIPS:37" for NC, "CITY:US530018" for Seattle). Obtain from noaa_climate_find_locations. Optional.',
     ).optional(),
     extent: identifierFilter(
       'Bounding box filter as "minLat,minLon,maxLat,maxLon" (e.g., "47.5,-122.4,47.7,-122.1" for central Seattle). Optional.',
@@ -67,7 +68,7 @@ export const noaaClimateFindStations = tool('noaa_climate_find_stations', {
       .array(
         z
           .object({
-            id: z.string().describe('Station ID (e.g., GHCND:USC00450974, COOP:010008).'),
+            id: z.string().describe('Station ID (e.g., GHCND:USW00024233, COOP:010008).'),
             name: z.string().describe('Station name.'),
             latitude: z
               .number()
@@ -170,8 +171,8 @@ export const noaaClimateFindStations = tool('noaa_climate_find_stations', {
       datasetid: input.datasetId,
       datatypeid: input.datatypeId,
       datacategoryid: input.datacategoryId,
-      startdate: input.startDate,
-      enddate: input.endDate,
+      startdate: toCdoWireDate(input.startDate),
+      enddate: toCdoWireDate(input.endDate),
       sortfield: input.sortField,
       sortorder: input.sortOrder,
       limit: input.limit,

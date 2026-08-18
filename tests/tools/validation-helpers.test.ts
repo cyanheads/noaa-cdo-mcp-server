@@ -10,6 +10,7 @@ import {
   identifierArrayFilter,
   identifierFilter,
   isoDateFilter,
+  toCdoWireDate,
   toUtcMillis,
 } from '@/mcp-server/tools/definitions/shared/validation.js';
 
@@ -24,10 +25,10 @@ describe('isoDateFilter', () => {
     '2024-07-01T00:00:00.123456',
     '2024-02-29',
     '2000-02-29',
-    // Compact, separator-free — live CDO accepts it on every endpoint.
+    // Compact, separator-free — live CDO accepts it everywhere but /data.
     '20240701',
     '20240229',
-    // Unpadded month/day — live CDO accepts it everywhere except /data.
+    // Unpadded month/day — live CDO accepts it everywhere but /data.
     '2024-7-1',
     '2024-7-01',
     '2024-07-1',
@@ -36,7 +37,9 @@ describe('isoDateFilter', () => {
     expect(schema.parse(v)).toBe(v);
   });
 
-  it('never rewrites an accepted value — the input reaches CDO verbatim', () => {
+  // Rewriting to the form CDO parses everywhere is toCdoWireDate's job, applied
+  // where a tool builds its upstream params — the schema returns what it got.
+  it('never rewrites an accepted value', () => {
     expect(schema.parse('20240701')).toBe('20240701');
     expect(schema.parse('2024-7-1')).toBe('2024-7-1');
   });
@@ -218,5 +221,35 @@ describe('toUtcMillis', () => {
 
   it('orders a datetime after the bare date of the same day', () => {
     expect(toUtcMillis('2024-07-01T00:00:01')).toBeGreaterThan(toUtcMillis('2024-07-01'));
+  });
+});
+
+describe('toCdoWireDate', () => {
+  it.each([
+    ['20240701', '2024-07-01'],
+    ['20240229', '2024-02-29'],
+    ['2024-7-1', '2024-07-01'],
+    ['2024-7-01', '2024-07-01'],
+    ['2024-07-1', '2024-07-01'],
+    ['2024-7-1T12:30:45', '2024-07-01T12:30:45'],
+  ])('rewrites %s to %s', (input, canonical) => {
+    expect(toCdoWireDate(input)).toBe(canonical);
+  });
+
+  it.each(['2024-07-01', '2024-07-01T12:30:45', '2024-07-01T23:59:59.123'])(
+    'leaves the already-canonical %s untouched',
+    (v) => {
+      expect(toCdoWireDate(v)).toBe(v);
+    },
+  );
+
+  it('passes undefined through so an optional filter needs no call-site guard', () => {
+    expect(toCdoWireDate(undefined)).toBeUndefined();
+  });
+
+  it('agrees with toUtcMillis on the instant every accepted form names', () => {
+    for (const v of ['20240701', '2024-7-1', '2024-07-01', '2024-7-1T12:30:45']) {
+      expect(toUtcMillis(toCdoWireDate(v) as string)).toBe(toUtcMillis(v));
+    }
   });
 });

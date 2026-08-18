@@ -1,6 +1,7 @@
 /**
  * @fileoverview Shared input-validation schemas for NOAA CDO date and identifier
- * filters, plus the UTC normalization the date comparisons depend on.
+ * filters, plus the canonical wire form and UTC normalization every date
+ * comparison and outbound request depends on.
  * @module mcp-server/tools/definitions/shared/validation
  */
 
@@ -10,14 +11,18 @@ import { z } from '@cyanheads/mcp-ts-core';
  * Date forms NOAA CDO accepts: a compact `YYYYMMDD`, a dashed calendar date
  * whose month and day may be unpadded, or a dashed date with a full ISO-8601
  * local time and optional fractional seconds. CDO rejects a `Z` suffix, a UTC
- * offset, a space separator, and a minute-precision time, so those are excluded
- * deliberately rather than by oversight.
+ * offset, and a space separator, so those are excluded deliberately rather than
+ * by oversight. A minute-precision time (`T00:00`) is excluded on the same
+ * grounds, though only `/data` rejects it — `/locations` and the other
+ * collection endpoints answer it with a 200. Second-precision (`T00:00:00`) is
+ * equivalent and accepted everywhere, so the schema keeps the stricter rule.
  *
- * The unpadded form is accepted on every CDO endpoint except `/data`, which
- * answers it with a 400. That asymmetry is left to CDO — a per-endpoint schema
- * variant would cost uniformity across the tool surface to pre-empt one
- * endpoint's stricter parsing, and the 400 already surfaces as a
- * `validation_error`.
+ * CDO's parsers disagree on the other two forms: `/data` rejects a compact
+ * `startdate` with a misleading range error and rejects the unpadded dashed
+ * form outright, while every other endpoint accepts both. Tools therefore send
+ * `toCdoWireDate()` output upstream rather than the caller's raw string, which
+ * makes every form advertised here work on every endpoint without a
+ * per-endpoint schema variant.
  *
  * Structural bounds (month, day, hour, minute, second ranges) live in the
  * pattern so they reach clients through the advertised JSON Schema; only
@@ -39,6 +44,8 @@ const CALENDAR_MESSAGE = 'Date is not a real calendar date.';
 
 const BLANK_MESSAGE = 'Identifier must not be empty or whitespace-only.';
 
+const BLANK_TEXT_MESSAGE = 'Search text must not be empty or whitespace-only.';
+
 /**
  * Rewrite any accepted date form to the canonical zero-padded, dashed one.
  *
@@ -47,9 +54,6 @@ const BLANK_MESSAGE = 'Identifier must not be empty or whitespace-only.';
  * `Date.parse('20240701Z')` is `NaN`, which would make the range and ordering
  * guards evaluate false and stop firing without ever erroring. Normalizing
  * first is what keeps those guards honest for every form the schema admits.
- *
- * Purely internal: the value sent upstream is always the caller's own, since
- * CDO accepts each accepted form on the endpoints the schema documents.
  */
 function normalizeCdoDate(value: string): string {
   if (COMPACT_DATE_PATTERN.test(value)) {
@@ -90,6 +94,23 @@ export function toUtcMillis(value: string): number {
 }
 
 /**
+ * The form a validated CDO date takes on the wire: canonical, zero-padded and
+ * dashed, with any time-of-day preserved.
+ *
+ * Every tool forwarding a date filter sends this rather than the caller's raw
+ * string. `/data` is stricter than the rest of CDO — it rejects a compact
+ * `startdate` and the unpadded dashed form — so relaying the caller's own text
+ * makes an advertised input form fail on one endpoint and work on the others.
+ * The canonical form is accepted everywhere, which is what makes one schema
+ * correct across the whole surface.
+ *
+ * Takes and returns `undefined` so an optional filter needs no call-site guard.
+ */
+export function toCdoWireDate(value: string | undefined): string | undefined {
+  return value === undefined ? undefined : normalizeCdoDate(value);
+}
+
+/**
  * A NOAA CDO date filter — compact date, bare date, or full ISO-8601 datetime.
  *
  * `abort` stops the chain at a shape failure so the calendar refinement never
@@ -106,16 +127,18 @@ export function isoDateFilter(description: string) {
 }
 
 /**
- * The single blank-rejection rule both identifier filters build on. `min(1)`
+ * The single blank-rejection rule every filter below builds on. `min(1)`
  * carries the constraint to clients as JSON Schema `minLength`; the refinement
  * catches whitespace-only input, which `minLength` alone admits. `abort` keeps
- * an empty string from drawing both messages, which carry identical text.
+ * an empty string from drawing both messages, which carry identical text. The
+ * message is a parameter so identifier and search wording stay distinct without
+ * the rule itself being restated.
  */
-function nonBlankIdentifier() {
+function nonBlank(message: string) {
   return z
     .string()
-    .min(1, { error: BLANK_MESSAGE, abort: true })
-    .refine((v) => v.trim().length > 0, BLANK_MESSAGE);
+    .min(1, { error: message, abort: true })
+    .refine((v) => v.trim().length > 0, message);
 }
 
 /**
@@ -123,7 +146,7 @@ function nonBlankIdentifier() {
  * empty and whitespace-only input, and never trims or rewrites a real ID.
  */
 export function identifierFilter(description: string) {
-  return nonBlankIdentifier().describe(description);
+  return nonBlank(BLANK_MESSAGE).describe(description);
 }
 
 /**
@@ -133,7 +156,18 @@ export function identifierFilter(description: string) {
  */
 export function identifierArrayFilter(description: string) {
   return z
-    .array(nonBlankIdentifier())
+    .array(nonBlank(BLANK_MESSAGE))
     .min(1, 'Provide at least one identifier, or omit the filter entirely.')
     .describe(description);
+}
+
+/**
+ * A client-side free-text filter. Shares the identifier filters' blank
+ * rejection — a whitespace-only needle matches every candidate, which widens
+ * the result set the caller asked to narrow — but carries search wording rather
+ * than identifier wording, and stays untrimmed so leading or trailing spaces
+ * remain part of the substring the caller asked for.
+ */
+export function searchTextFilter(description: string) {
+  return nonBlank(BLANK_TEXT_MESSAGE).describe(description);
 }

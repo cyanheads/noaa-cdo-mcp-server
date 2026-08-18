@@ -315,20 +315,19 @@ describe('noaa_climate_fetch_data — guards still fire for the compact and unpa
     await expect(noaaClimateFetchData.handler(input, ctx)).resolves.toBeDefined();
   });
 
-  it.each(['20240701', '2024-7-1'])(
-    'sends %s to CDO verbatim rather than a rewritten form',
-    async (startDate) => {
-      const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
-      const input = noaaClimateFetchData.input.parse({
-        datasetId: 'GHCND',
-        startDate,
-        endDate: '2024-07-07',
-      });
+  // `/data` is the one CDO endpoint that rejects the compact and unpadded forms
+  // it advertises elsewhere, so the canonical form is what goes on the wire.
+  it.each(['20240701', '2024-7-1'])('sends %s to CDO in the canonical form', async (startDate) => {
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
+      datasetId: 'GHCND',
+      startDate,
+      endDate: '2024-07-07',
+    });
 
-      await noaaClimateFetchData.handler(input, ctx);
+    await noaaClimateFetchData.handler(input, ctx);
 
-      const fetchData = vi.mocked(getCdoService)().fetchData as ReturnType<typeof vi.fn>;
-      expect(fetchData.mock.calls[0]![0]).toMatchObject({ startdate: startDate });
-    },
-  );
+    const fetchData = vi.mocked(getCdoService)().fetchData as ReturnType<typeof vi.fn>;
+    expect(fetchData.mock.calls[0]![0]).toMatchObject({ startdate: '2024-07-01' });
+  });
 });

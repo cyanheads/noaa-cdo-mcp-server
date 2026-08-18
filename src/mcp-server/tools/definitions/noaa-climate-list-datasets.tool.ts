@@ -9,6 +9,7 @@ import {
   identifierArrayFilter,
   identifierFilter,
   isoDateFilter,
+  toCdoWireDate,
 } from '@/mcp-server/tools/definitions/shared/validation.js';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 import { resolveCollectionTotal } from '@/services/cdo/pagination.js';
@@ -26,7 +27,7 @@ export const noaaClimateListDatasets = tool('noaa_climate_list_datasets', {
       'Filter to datasets covering this location ID (e.g., "FIPS:37" for NC). Optional.',
     ).optional(),
     stationId: identifierFilter(
-      'Filter to datasets covering this station ID (e.g., "GHCND:USC00450974"). Optional.',
+      'Filter to datasets covering this station ID (e.g., "GHCND:USW00024233"). Optional.',
     ).optional(),
     startDate: isoDateFilter(
       'Filter to datasets with data on or after this ISO date (YYYY-MM-DD). Optional.',
@@ -132,8 +133,8 @@ export const noaaClimateListDatasets = tool('noaa_climate_list_datasets', {
       datatypeid: input.datatypeId,
       locationid: input.locationId,
       stationid: input.stationId,
-      startdate: input.startDate,
-      enddate: input.endDate,
+      startdate: toCdoWireDate(input.startDate),
+      enddate: toCdoWireDate(input.endDate),
       sortfield: input.sortField,
       sortorder: input.sortOrder,
       limit: input.limit,
