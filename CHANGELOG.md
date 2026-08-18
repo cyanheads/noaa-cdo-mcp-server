@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.4.0](changelog/0.4.x/0.4.0.md) — 2026-08-18
+
+Adds noaa_climate_list_location_categories and a nameContains name filter on find_locations; fixes fetch_data's date-range cap to follow CDO's calendar-month rule (was rejecting a full leap year) and extends it to NEXRAD radar; normalizes outbound date filters to CDO's canonical wire form; sweeps dead example identifiers.
+
 ## [0.3.0](changelog/0.3.x/0.3.0.md) — 2026-08-18 · ⚠️ Breaking
 
 Validates date and identifier inputs across all seven tools before calling CDO (breaking schema narrowing); fixes fetch_data's metadata-total collapse and exhausted-page pagination; adds a typed not-found contract to the station resource. mcp-ts-core ^0.10.9 → ^0.11.5.

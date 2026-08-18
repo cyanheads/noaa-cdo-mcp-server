@@ -1,7 +1,7 @@
 # Developer Protocol
 
 **Server:** noaa-climate-mcp-server
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.11.5`
 **Engines:** Bun ≥1.3.0, Node ≥24.0.0
 **MCP SDK:** `@modelcontextprotocol/sdk` ^1.30.0
@@ -13,12 +13,13 @@
 
 ## Domain
 
-NOAA Climate Data Online (CDO) API v2 — historical weather data. 7 tools, 2 resources:
+NOAA Climate Data Online (CDO) API v2 — historical weather data. 8 tools, 2 resources:
 
 - `noaa_climate_list_datasets` — list available CDO datasets
 - `noaa_climate_list_data_categories` — list measurement category groups
 - `noaa_climate_list_data_types` — list measurement labels by dataset or category
-- `noaa_climate_find_locations` — search geographic locations by category
+- `noaa_climate_list_location_categories` — list the location categories that scope location search
+- `noaa_climate_find_locations` — search geographic locations by category, with an optional client-side name filter
 - `noaa_climate_find_stations` — search weather stations by location, bounding box, dataset
 - `noaa_climate_get_station` — fetch full metadata for a single station
 - `noaa_climate_fetch_data` — fetch historical observations with date range validation and unit selection

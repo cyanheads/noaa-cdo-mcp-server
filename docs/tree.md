@@ -1,6 +1,6 @@
 # noaa-climate-mcp-server - Directory Structure
 
-Generated on: 2026-08-18 19:08:02
+Generated on: 2026-08-18 20:51:05
 
 ```text
 noaa-climate-mcp-server/
@@ -25,6 +25,7 @@ noaa-climate-mcp-server/
 │   ├── 0.1.x/
 │   ├── 0.2.x/
 │   ├── 0.3.x/
+│   ├── 0.4.x/
 │   └── template.md
 ├── docs/
 │   ├── design.md
@@ -151,7 +152,8 @@ noaa-climate-mcp-server/
 │   │           ├── noaa-climate-get-station.tool.ts
 │   │           ├── noaa-climate-list-data-categories.tool.ts
 │   │           ├── noaa-climate-list-data-types.tool.ts
-│   │           └── noaa-climate-list-datasets.tool.ts
+│   │           ├── noaa-climate-list-datasets.tool.ts
+│   │           └── noaa-climate-list-location-categories.tool.ts
 │   ├── services/
 │   │   └── cdo/
 │   │       ├── cdo-service.ts
@@ -170,11 +172,15 @@ noaa-climate-mcp-server/
 │   │   ├── cdo-service-request-options.test.ts
 │   │   └── cdo-service.test.ts
 │   ├── tools/
+│   │   ├── date-wire-normalization.test.ts
+│   │   ├── example-station-id.test.ts
+│   │   ├── fetch-data-date-range.test.ts
 │   │   ├── fetch-data-includemetadata.test.ts
 │   │   ├── format-empty-page.test.ts
 │   │   ├── noaa-climate-fetch-data-extended.tool.test.ts
 │   │   ├── noaa-climate-fetch-data.tool.test.ts
 │   │   ├── noaa-climate-find-locations-extended.tool.test.ts
+│   │   ├── noaa-climate-find-locations-name-filter.test.ts
 │   │   ├── noaa-climate-find-locations.tool.test.ts
 │   │   ├── noaa-climate-find-stations-extended.tool.test.ts
 │   │   ├── noaa-climate-find-stations.tool.test.ts
@@ -186,6 +192,7 @@ noaa-climate-mcp-server/
 │   │   ├── noaa-climate-list-data-types.tool.test.ts
 │   │   ├── noaa-climate-list-datasets-extended.tool.test.ts
 │   │   ├── noaa-climate-list-datasets.tool.test.ts
+│   │   ├── noaa-climate-list-location-categories.tool.test.ts
 │   │   ├── pagination-exhausted.test.ts
 │   │   ├── validation-helpers.test.ts
 │   │   └── validation-schemas.test.ts
