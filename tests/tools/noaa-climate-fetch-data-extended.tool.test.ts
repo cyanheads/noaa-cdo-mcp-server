@@ -161,7 +161,7 @@ describe('noaaClimateFetchData — date range validation edge cases', () => {
     expect(result.results).toBeDefined();
   });
 
-  it('date range error includes requestedDays and maxDays in data', async () => {
+  it('date range error includes requestedDays, maxDays, and maxEndDate in data', async () => {
     const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
     const input = noaaClimateFetchData.input.parse({
       datasetId: 'GHCND',
@@ -171,8 +171,10 @@ describe('noaaClimateFetchData — date range validation edge cases', () => {
     await expect(noaaClimateFetchData.handler(input, ctx)).rejects.toMatchObject({
       data: {
         reason: 'date_range_exceeded',
-        requestedDays: expect.any(Number),
-        maxDays: 365,
+        requestedDays: 730,
+        // CDO accepts through the end of January 2023 for a January 2022 start.
+        maxDays: 396,
+        maxEndDate: '2023-01-31',
       },
     });
   });

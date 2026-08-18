@@ -156,12 +156,24 @@ describe('noaaClimateFetchData', () => {
     });
   });
 
-  it('does not validate date range for NEXRAD2 (no range limit)', async () => {
+  it('validates the NEXRAD2 date range on the 1-year rule CDO enforces', async () => {
     const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
     const input = noaaClimateFetchData.input.parse({
       datasetId: 'NEXRAD2',
       startDate: '2000-01-01',
-      endDate: '2024-12-31', // > 10 years — no limit for NEXRAD2
+      endDate: '2024-12-31',
+    });
+    await expect(noaaClimateFetchData.handler(input, ctx)).rejects.toMatchObject({
+      data: { reason: 'date_range_exceeded', maxEndDate: '2001-01-31' },
+    });
+  });
+
+  it('accepts a NEXRAD2 range inside the 1-year rule', async () => {
+    const ctx = createMockContext({ errors: noaaClimateFetchData.errors });
+    const input = noaaClimateFetchData.input.parse({
+      datasetId: 'NEXRAD2',
+      startDate: '2020-03-10',
+      endDate: '2021-03-31',
     });
     const result = await noaaClimateFetchData.handler(input, ctx);
     expect(result.results).toBeDefined();

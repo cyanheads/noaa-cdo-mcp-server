@@ -9,57 +9,105 @@ import {
   identifierArrayFilter,
   identifierFilter,
   isoDateFilter,
+  toCdoWireDate,
   toUtcMillis,
 } from '@/mcp-server/tools/definitions/shared/validation.js';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 import { resolveCollectionTotal } from '@/services/cdo/pagination.js';
 
-/** Datasets limited to 1-year date ranges per request. */
+const MS_PER_DAY = 86_400_000;
+
+/** Sub-daily and daily datasets. */
 const DAILY_DATASETS = new Set(['GHCND', 'PRECIP_15', 'PRECIP_HLY', 'NORMAL_DLY', 'NORMAL_HLY']);
 
-/** Datasets limited to 10-year date ranges per request. */
+/** Weather radar datasets. */
+const RADAR_DATASETS = new Set(['NEXRAD2', 'NEXRAD3']);
+
+/**
+ * Datasets limited to a 1-year date range per request.
+ *
+ * CDO documents the cap for the daily datasets, and enforces the identical
+ * calendar-month boundary on radar without documenting it: from a 2020-03-10
+ * start, NEXRAD2 and NEXRAD3 answer 2021-04-01 with "The date range must be
+ * less than 1 year." while 2021-03-31 gets past the range check. Leaving radar
+ * uncapped forwarded an over-long request and handed the caller that opaque
+ * upstream error in place of the `date_range_exceeded` contract and its
+ * computed `maxEndDate`.
+ */
+const ONE_YEAR_DATASETS = new Set([...DAILY_DATASETS, ...RADAR_DATASETS]);
+
+/** Datasets limited to a 10-year date range per request. */
 const MONTHLY_DATASETS = new Set(['GSOM', 'GSOY', 'NORMAL_MLY', 'NORMAL_ANN']);
 
 /** All stable CDO datasets. Used for pre-request validation so unknown IDs surface as validation_error, not a raw HTTP 500. */
-const KNOWN_DATASETS = new Set([...DAILY_DATASETS, ...MONTHLY_DATASETS, 'NEXRAD2', 'NEXRAD3']);
+const KNOWN_DATASETS = new Set([...ONE_YEAR_DATASETS, ...MONTHLY_DATASETS]);
 
-/** Return the max allowed date-range days for a given datasetId, or undefined when unknown. */
-function maxRangeForDataset(datasetId: string): number | undefined {
+/** Years of span CDO allows for a datasetId, or undefined when it documents no cap. */
+function maxSpanYearsForDataset(datasetId: string): number | undefined {
   const upper = datasetId.toUpperCase();
-  if (DAILY_DATASETS.has(upper)) return 365;
-  if (MONTHLY_DATASETS.has(upper)) return 3650;
+  if (ONE_YEAR_DATASETS.has(upper)) return 1;
+  if (MONTHLY_DATASETS.has(upper)) return 10;
   return;
+}
+
+/**
+ * Floor a validated CDO date to UTC midnight.
+ *
+ * The schema admits an optional time-of-day, and CDO's range rule reads the
+ * calendar date alone — comparing raw milliseconds would reject a `T23:59:59`
+ * end that CDO accepts.
+ */
+function toUtcDayMillis(value: string): number {
+  return Math.floor(toUtcMillis(value) / MS_PER_DAY) * MS_PER_DAY;
+}
+
+/**
+ * The latest `endDate` CDO accepts for a given start.
+ *
+ * Established by probing the live `/data` endpoint: acceptance holds while the
+ * end date falls on or before the last day of the calendar month `years` years
+ * after the start's month, and the next day answers HTTP 400. CDO compares at
+ * month granularity, so a fixed day count cannot express the boundary — the
+ * same 1-year rule admits 365 days from 2023-01-01 and 397 from 2024-01-01,
+ * and a 365-day cap rejected a full leap year CDO answers with 366 records.
+ *
+ * Day 0 of the following month resolves to the last day of the target month,
+ * which also lands February correctly in both leap and common years.
+ */
+function maxEndDateFor(startDate: string, years: number): string {
+  const start = new Date(toUtcDayMillis(startDate));
+  const last = new Date(Date.UTC(start.getUTCFullYear() + years, start.getUTCMonth() + 1, 0));
+  return last.toISOString().slice(0, 10);
 }
 
 /**
  * Count calendar days between two validated CDO date strings (inclusive).
  *
- * Both ends are normalized to UTC first: the bare-date and datetime forms the
- * schema accepts otherwise parse against different timelines, which shifts the
- * count by the host's UTC offset and can flip a range sitting on the limit.
+ * Both ends are floored to UTC midnight first: the bare-date and datetime forms
+ * the schema accepts otherwise parse against different timelines, which shifts
+ * the count by the host's UTC offset and can flip a range sitting on the limit.
  */
 function daysBetween(start: string, end: string): number {
-  const msPerDay = 86_400_000;
-  return Math.round((toUtcMillis(end) - toUtcMillis(start)) / msPerDay) + 1;
+  return (toUtcDayMillis(end) - toUtcDayMillis(start)) / MS_PER_DAY + 1;
 }
 
 export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
   title: 'Fetch NOAA Climate Observation Data',
   description:
-    'Fetch historical observation records from a NOAA CDO dataset for a given date range. Requires datasetId (e.g., GHCND for daily, GSOM for monthly), startDate, and endDate. Optionally scope to specific stations, locations, and data types. Date range limits per request: sub-daily and daily datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) are limited to 1 year; monthly and annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) are limited to 10 years. For climate normals (NORMAL_*), use startDate=2010-01-01 and endDate=2010-12-31 — that is the API proxy year regardless of which 30-year period is being described. Returns flat tuples of { date, datatype, station, value, attributes }. Strongly recommended: pass units=metric or units=standard — without it, GHCND values are raw tenths-of-unit integers (TMAX=256 = 25.6°C, PRCP=12 = 1.2mm). GSOM/GSOY are already scaled.',
+    'Fetch historical observation records from a NOAA CDO dataset for a given date range. Requires datasetId (e.g., GHCND for daily, GSOM for monthly), startDate, and endDate. Optionally scope to specific stations, locations, and data types. Date range limits per request: sub-daily, daily, and radar datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) are limited to 1 year; monthly and annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) are limited to 10 years. A full calendar year always fits, leap years included — the limit runs to the end of the calendar month 1 (or 10) years after startDate. For climate normals (NORMAL_*), use startDate=2010-01-01 and endDate=2010-12-31 — that is the API proxy year regardless of which 30-year period is being described. Returns flat tuples of { date, datatype, station, value, attributes }. Strongly recommended: pass units=metric or units=standard — without it, GHCND values are raw tenths-of-unit integers (TMAX=256 = 25.6°C, PRCP=12 = 1.2mm). GSOM/GSOY are already scaled.',
   annotations: { readOnlyHint: true, openWorldHint: true },
   input: z.object({
     datasetId: identifierFilter(
-      'Dataset ID to query (e.g., GHCND for daily data, GSOM for monthly, GSOY for annual, NORMAL_DLY/MLY/ANN/HLY for 1981–2010 climate normals). Determines date range limit: GHCND/PRECIP_*/NORMAL_DLY/NORMAL_HLY allow 1-year max per request; GSOM/GSOY/NORMAL_MLY/NORMAL_ANN allow 10-year max.',
+      'Dataset ID to query (e.g., GHCND for daily data, GSOM for monthly, GSOY for annual, NORMAL_DLY/MLY/ANN/HLY for 1981–2010 climate normals, NEXRAD2/NEXRAD3 for weather radar). Determines date range limit: GHCND/PRECIP_*/NORMAL_DLY/NORMAL_HLY/NEXRAD2/NEXRAD3 allow 1-year max per request; GSOM/GSOY/NORMAL_MLY/NORMAL_ANN allow 10-year max.',
     ),
     startDate: isoDateFilter(
       'Start date for observations (YYYY-MM-DD). For NORMAL_* datasets use 2010-01-01 regardless of the years being analyzed — 2010 is the API proxy year for all normals.',
     ),
     endDate: isoDateFilter(
-      'End date for observations (YYYY-MM-DD). Must be within 1 year of startDate for sub-daily/daily datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) or within 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN). For any NORMAL_* dataset use 2010-12-31.',
+      'End date for observations (YYYY-MM-DD). Must be within 1 year of startDate for sub-daily/daily/radar datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) or within 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) — measured to the end of the calendar month that many years after startDate, so a full calendar year (2024-01-01 to 2024-12-31) always fits. For any NORMAL_* dataset use 2010-12-31.',
     ),
     stationId: identifierArrayFilter(
-      'One or more station IDs to filter by (e.g., ["GHCND:USC00450974"]). Obtain from noaa_climate_find_stations. Multiple IDs return comparative readings across stations. Optional.',
+      'One or more station IDs to filter by (e.g., ["GHCND:USW00024233"]). Obtain from noaa_climate_find_stations. Multiple IDs return comparative readings across stations. Optional.',
     ).optional(),
     locationId: identifierArrayFilter(
       'One or more location IDs to filter by (e.g., ["FIPS:37", "ZIP:98101"]). Broader than stationId — returns data from all stations within the location. Optional.',
@@ -170,9 +218,9 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
     {
       reason: 'date_range_exceeded',
       code: JsonRpcErrorCode.ValidationError,
-      when: 'Date range exceeds 1 year for sub-daily/daily datasets (GHCND, PRECIP_*, NORMAL_DLY, NORMAL_HLY) or 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN).',
+      when: 'endDate is past the end of the calendar month 1 year after startDate for sub-daily/daily/radar datasets (GHCND, PRECIP_*, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3), or 10 years after it for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN).',
       recovery:
-        'Narrow the date range or split into multiple requests. For NORMAL_* datasets use startDate=2010-01-01 and endDate=2010-12-31.',
+        'Use the maxEndDate named in the error, or split into consecutive requests. For NORMAL_* datasets use startDate=2010-01-01 and endDate=2010-12-31.',
     },
     {
       reason: 'validation_error',
@@ -225,21 +273,23 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
       );
     }
 
-    // Validate date range against known dataset limits
-    const maxDays = maxRangeForDataset(input.datasetId);
-    if (maxDays !== undefined) {
-      const days = daysBetween(input.startDate, input.endDate);
-      if (days > maxDays) {
-        const limit = maxDays === 365 ? '1 year' : '10 years';
+    // Validate the date range against the boundary CDO itself enforces.
+    const maxSpanYears = maxSpanYearsForDataset(input.datasetId);
+    if (maxSpanYears !== undefined) {
+      const maxEndDate = maxEndDateFor(input.startDate, maxSpanYears);
+      if (toUtcDayMillis(input.endDate) > toUtcDayMillis(maxEndDate)) {
+        const limit = `${maxSpanYears}-year`;
+        const requestedDays = daysBetween(input.startDate, input.endDate);
         throw ctx.fail(
           'date_range_exceeded',
-          `Date range of ${days} days exceeds the ${maxDays}-day (${limit}) limit for dataset "${input.datasetId}".`,
+          `Date range of ${requestedDays} days exceeds the ${limit} limit for dataset "${input.datasetId}". From startDate "${input.startDate}", the latest endDate NOAA CDO accepts is ${maxEndDate}.`,
           {
             datasetId: input.datasetId,
-            requestedDays: days,
-            maxDays,
+            requestedDays,
+            maxDays: daysBetween(input.startDate, maxEndDate),
+            maxEndDate,
             recovery: {
-              hint: `Narrow the date range to ≤${limit} per request, or split into multiple calls. For NORMAL_* datasets use startDate=2010-01-01 and endDate=2010-12-31.`,
+              hint: `Set endDate to ${maxEndDate} or earlier, or split the query into consecutive requests. For NORMAL_* datasets use startDate=2010-01-01 and endDate=2010-12-31.`,
             },
           },
         );
@@ -249,8 +299,8 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
     const service = getCdoService();
     const params = {
       datasetid: input.datasetId,
-      startdate: input.startDate,
-      enddate: input.endDate,
+      startdate: toCdoWireDate(input.startDate),
+      enddate: toCdoWireDate(input.endDate),
       stationid: input.stationId,
       locationid: input.locationId,
       datatypeid: input.datatypeId,
