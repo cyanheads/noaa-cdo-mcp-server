@@ -1,6 +1,6 @@
 # noaa-climate-mcp-server - Directory Structure
 
-Generated on: 2026-06-22 04:22:04
+Generated on: 2026-08-18 19:08:02
 
 ```text
 noaa-climate-mcp-server/
@@ -10,16 +10,21 @@ noaa-climate-mcp-server/
 │   ├── mcp.json
 │   └── plugin.json
 ├── .github/
-│   └── ISSUE_TEMPLATE/
-│       ├── bug_report.yml
-│       ├── config.yml
-│       └── feature_request.yml
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml
+│   │   ├── config.yml
+│   │   └── feature_request.yml
+│   ├── CODE_OF_CONDUCT.md
+│   ├── CONTRIBUTING.md
+│   ├── FUNDING.yml
+│   └── SECURITY.md
 ├── .vscode/
 │   ├── extensions.json
 │   └── settings.json
 ├── changelog/
 │   ├── 0.1.x/
 │   ├── 0.2.x/
+│   ├── 0.3.x/
 │   └── template.md
 ├── docs/
 │   ├── design.md
@@ -138,6 +143,8 @@ noaa-climate-mcp-server/
 │   │   │       └── noaa-station.resource.ts
 │   │   └── tools/
 │   │       └── definitions/
+│   │           ├── shared/
+│   │           │   └── validation.ts
 │   │           ├── noaa-climate-fetch-data.tool.ts
 │   │           ├── noaa-climate-find-locations.tool.ts
 │   │           ├── noaa-climate-find-stations.tool.ts
@@ -148,16 +155,23 @@ noaa-climate-mcp-server/
 │   ├── services/
 │   │   └── cdo/
 │   │       ├── cdo-service.ts
+│   │       ├── pagination.ts
 │   │       └── types.ts
 │   └── index.ts
 ├── tests/
+│   ├── helpers/
+│   │   └── content.ts
 │   ├── prompts/
 │   ├── resources/
 │   │   ├── noaa-datasets.resource.test.ts
 │   │   └── noaa-station.resource.test.ts
 │   ├── services/
+│   │   ├── cdo-pagination.test.ts
+│   │   ├── cdo-service-request-options.test.ts
 │   │   └── cdo-service.test.ts
 │   ├── tools/
+│   │   ├── fetch-data-includemetadata.test.ts
+│   │   ├── format-empty-page.test.ts
 │   │   ├── noaa-climate-fetch-data-extended.tool.test.ts
 │   │   ├── noaa-climate-fetch-data.tool.test.ts
 │   │   ├── noaa-climate-find-locations-extended.tool.test.ts
@@ -171,10 +185,14 @@ noaa-climate-mcp-server/
 │   │   ├── noaa-climate-list-data-types-extended.tool.test.ts
 │   │   ├── noaa-climate-list-data-types.tool.test.ts
 │   │   ├── noaa-climate-list-datasets-extended.tool.test.ts
-│   │   └── noaa-climate-list-datasets.tool.test.ts
+│   │   ├── noaa-climate-list-datasets.tool.test.ts
+│   │   ├── pagination-exhausted.test.ts
+│   │   ├── validation-helpers.test.ts
+│   │   └── validation-schemas.test.ts
 │   └── tool-naming.test.ts
 ├── .dockerignore
 ├── .env.example
+├── .gitattributes
 ├── .gitignore
 ├── .mcpbignore
 ├── biome.json

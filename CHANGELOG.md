@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.3.0](changelog/0.3.x/0.3.0.md) — 2026-08-18 · ⚠️ Breaking
+
+Validates date and identifier inputs across all seven tools before calling CDO (breaking schema narrowing); fixes fetch_data's metadata-total collapse and exhausted-page pagination; adds a typed not-found contract to the station resource. mcp-ts-core ^0.10.9 → ^0.11.5.
+
 ## [0.2.0](changelog/0.2.x/0.2.0.md) — 2026-06-21 · ⚠️ Breaking
 
 Rename noaa-cdo-mcp-server → noaa-climate-mcp-server; tool prefix noaa_* → noaa_climate_* across all 7 tools. Breaking: new package name and tool ids. Install @cyanheads/noaa-climate-mcp-server; the old package is deprecated.
