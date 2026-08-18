@@ -1,7 +1,7 @@
 # Developer Protocol
 
 **Server:** noaa-climate-mcp-server
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.11.5`
 **Engines:** Bun ≥1.3.0, Node ≥24.0.0
 **MCP SDK:** `@modelcontextprotocol/sdk` ^1.30.0
@@ -13,7 +13,7 @@
 
 ## Domain
 
-NOAA Climate Data Online (CDO) API v2 — historical weather data. 8 tools, 2 resources:
+NOAA Climate Data Online (CDO) API v2 — historical weather data — plus the NCEI Storm Events Database, a separate bulk-CSV corpus. 9 tools, 2 resources:
 
 - `noaa_climate_list_datasets` — list available CDO datasets
 - `noaa_climate_list_data_categories` — list measurement category groups
@@ -23,10 +23,14 @@ NOAA Climate Data Online (CDO) API v2 — historical weather data. 8 tools, 2 re
 - `noaa_climate_find_stations` — search weather stations by location, bounding box, dataset
 - `noaa_climate_get_station` — fetch full metadata for a single station
 - `noaa_climate_fetch_data` — fetch historical observations with date range validation and unit selection
+- `noaa_climate_search_storm_events` — search NCEI Storm Events for one year (severe-weather events, damage, casualties, narratives)
 - `noaa://datasets` resource — all CDO datasets as injectable context
 - `noaa://stations/{stationId}` resource — station metadata by ID
 
-**Service:** `src/services/cdo/cdo-service.ts` — HTTP client with retry/backoff, `NOAA_CDO_TOKEN` header auth.
+**Services:**
+
+- `src/services/cdo/cdo-service.ts` — HTTP client with retry/backoff, `NOAA_CDO_TOKEN` header auth.
+- `src/services/storm-events/storm-events-service.ts` — NCEI bulk CSV. No token, no JSON envelope, no `resolveCollectionTotal()`. Resolves each year's `_c<publishDate>`-suffixed filename from the live directory index (it is not constructible), decompresses explicitly (the files carry no `Content-Encoding`), and streams a year through `csv.ts` so the decompressed ~70 MB is never held. Caches the listing and two years of compressed bytes for six hours. Damage parsing lives in `damage.ts` — an empty cell is "not reported", never `0`.
 
 ---
 

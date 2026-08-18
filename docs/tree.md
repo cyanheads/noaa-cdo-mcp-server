@@ -1,6 +1,6 @@
 # noaa-climate-mcp-server - Directory Structure
 
-Generated on: 2026-08-18 20:51:05
+Generated on: 2026-08-18 22:19:27
 
 ```text
 noaa-climate-mcp-server/
@@ -26,6 +26,7 @@ noaa-climate-mcp-server/
 │   ├── 0.2.x/
 │   ├── 0.3.x/
 │   ├── 0.4.x/
+│   ├── 0.5.x/
 │   └── template.md
 ├── docs/
 │   ├── design.md
@@ -153,11 +154,17 @@ noaa-climate-mcp-server/
 │   │           ├── noaa-climate-list-data-categories.tool.ts
 │   │           ├── noaa-climate-list-data-types.tool.ts
 │   │           ├── noaa-climate-list-datasets.tool.ts
-│   │           └── noaa-climate-list-location-categories.tool.ts
+│   │           ├── noaa-climate-list-location-categories.tool.ts
+│   │           └── noaa-climate-search-storm-events.tool.ts
 │   ├── services/
-│   │   └── cdo/
-│   │       ├── cdo-service.ts
-│   │       ├── pagination.ts
+│   │   ├── cdo/
+│   │   │   ├── cdo-service.ts
+│   │   │   ├── pagination.ts
+│   │   │   └── types.ts
+│   │   └── storm-events/
+│   │       ├── csv.ts
+│   │       ├── damage.ts
+│   │       ├── storm-events-service.ts
 │   │       └── types.ts
 │   └── index.ts
 ├── tests/
@@ -170,7 +177,10 @@ noaa-climate-mcp-server/
 │   ├── services/
 │   │   ├── cdo-pagination.test.ts
 │   │   ├── cdo-service-request-options.test.ts
-│   │   └── cdo-service.test.ts
+│   │   ├── cdo-service.test.ts
+│   │   ├── storm-events-csv.test.ts
+│   │   ├── storm-events-damage.test.ts
+│   │   └── storm-events-service.test.ts
 │   ├── tools/
 │   │   ├── date-wire-normalization.test.ts
 │   │   ├── example-station-id.test.ts
@@ -193,6 +203,7 @@ noaa-climate-mcp-server/
 │   │   ├── noaa-climate-list-datasets-extended.tool.test.ts
 │   │   ├── noaa-climate-list-datasets.tool.test.ts
 │   │   ├── noaa-climate-list-location-categories.tool.test.ts
+│   │   ├── noaa-climate-search-storm-events.tool.test.ts
 │   │   ├── pagination-exhausted.test.ts
 │   │   ├── validation-helpers.test.ts
 │   │   └── validation-schemas.test.ts

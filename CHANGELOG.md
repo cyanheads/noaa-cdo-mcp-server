@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.5.0](changelog/0.5.x/0.5.0.md) — 2026-08-18
+
+Adds noaa_climate_search_storm_events over the NCEI Storm Events Database (tornadoes, hail, floods, hurricanes) — a separate, tokenless bulk-CSV corpus from the existing CDO tools, with damage figures that distinguish unreported from a confirmed zero.
+
 ## [0.4.0](changelog/0.4.x/0.4.0.md) — 2026-08-18
 
 Adds noaa_climate_list_location_categories and a nameContains name filter on find_locations; fixes fetch_data's date-range cap to follow CDO's calendar-month rule (was rejecting a full leap year) and extends it to NEXRAD radar; normalizes outbound date filters to CDO's canonical wire form; sweeps dead example identifiers.
