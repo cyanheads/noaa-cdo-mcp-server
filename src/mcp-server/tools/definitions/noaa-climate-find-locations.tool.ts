@@ -8,18 +8,51 @@ import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import {
   identifierFilter,
   isoDateFilter,
+  searchTextFilter,
+  toCdoWireDate,
 } from '@/mcp-server/tools/definitions/shared/validation.js';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 import { resolveCollectionTotal } from '@/services/cdo/pagination.js';
+import type { CdoLocation } from '@/services/cdo/types.js';
+
+/** Page size used to enumerate a category before applying `nameContains`. */
+const ENUMERATION_PAGE_SIZE = 1000;
+
+/**
+ * Pages the handler will spend enumerating one category.
+ *
+ * CDO rate-limits a token to 5 requests per second and answers HTTP 429 past
+ * that, so four is the largest burst that fits inside one second without pacing
+ * the loop.
+ */
+const MAX_ENUMERATION_PAGES = 4;
+
+/**
+ * Largest category `nameContains` will enumerate.
+ *
+ * CDO exposes no name parameter, so a name search has to be synthesized from a
+ * complete client-side enumeration — filtering a single upstream page would
+ * make the reported total a lie about matches elsewhere in the category. The
+ * bound is a live count, never a hardcoded category list: HYD_CAT (2,111) is
+ * larger than CITY (1,989), so a name-based allowlist gets it wrong. Four pages
+ * admits CNTY (3,178) — which a datasetId filter already brought under a
+ * narrower bound, so refusing the unfiltered call read as arbitrary — and lands
+ * in the 9.6x gap before ZIP (30,415), the 31-page category the bound exists to
+ * refuse.
+ */
+const MAX_ENUMERABLE_CATEGORY = ENUMERATION_PAGE_SIZE * MAX_ENUMERATION_PAGES;
 
 export const noaaClimateFindLocations = tool('noaa_climate_find_locations', {
   title: 'Find NOAA Climate Locations',
   description:
-    'Search for geographic locations by category (CITY, ST, CNTY, CNTRY, ZIP, CLIM_REG, etc.). Returns location IDs used in station search and data queries. Without locationCategoryId, returns all location types. Use locationCategoryId=ST to list US states (51 entries — small enough to retrieve completely). Use locationCategoryId=CITY for cities (thousands of entries — use pagination and sortField=name to navigate alphabetically). The CDO API has no name-search parameter; to find a specific city, sort alphabetically with sortField=name and page through results. Location IDs: states as FIPS:37 (NC), cities as CITY:US530031, zip codes as ZIP:98101, countries as CNTRY:US. Obtain location IDs here, then pass them to noaa_climate_find_stations or noaa_climate_fetch_data.',
+    'Search for geographic locations by category (CITY, ST, CNTY, CNTRY, ZIP, CLIM_REG, etc.). Returns location IDs used in station search and data queries. Without locationCategoryId, returns all location types; noaa_climate_list_location_categories lists the valid values. Use locationCategoryId=ST to list US states (51 entries — small enough to retrieve completely). To find a location by name, pass nameContains alongside locationCategoryId — the CDO API has no name parameter, so this server enumerates the category and matches the substring itself. It works for any category under the size limit stated on nameContains, which is every category except ZIP; a datasetId or datacategoryId filter can bring a category back under that limit. For a category still too large, sort alphabetically with sortField=name and page through results. Location IDs: states as FIPS:37 (NC), cities as CITY:US530018 (Seattle), zip codes as ZIP:98101, countries as FIPS:US. Obtain location IDs here, then pass them to noaa_climate_find_stations or noaa_climate_fetch_data.',
   annotations: { readOnlyHint: true, openWorldHint: true },
   input: z.object({
     locationCategoryId: identifierFilter(
-      'Category filter. Use ST for states (51 entries), CNTY for counties, CITY for cities (large set — thousands of entries), CNTRY for countries, ZIP for zip codes, CLIM_REG for NOAA climate regions, CLIM_DIV for climate divisions, HYD_ACC/HYD_CAT/HYD_REG/HYD_SUB for hydrological categories. Optional — omit to return all location types.',
+      'Category filter. Use ST for states (51 entries), CNTY for counties, CITY for cities (large set — thousands of entries), CNTRY for countries, ZIP for zip codes, US_TERR for US territories, CLIM_REG for NOAA climate regions, CLIM_DIV for climate divisions, HYD_ACC/HYD_CAT/HYD_REG/HYD_SUB for hydrological categories. Call noaa_climate_list_location_categories when you do not know which category to use — it returns the authoritative set. Optional — omit to return all location types.',
+    ).optional(),
+    nameContains: searchTextFilter(
+      `Case-insensitive substring match on the location name. The CDO API has no name parameter, so this server applies the match itself, across the whole category rather than one page — which bounds it to a category holding at most ${MAX_ENUMERABLE_CATEGORY} locations. Requires locationCategoryId; adding datasetId or datacategoryId narrows a category that is otherwise too large. Example: locationCategoryId="CITY" with nameContains="seattle". Optional.`,
     ).optional(),
     datasetId: identifierFilter(
       'Filter to locations covered by this dataset (e.g., "GHCND"). Optional.',
@@ -62,7 +95,7 @@ export const noaaClimateFindLocations = tool('noaa_climate_find_locations', {
       .array(
         z
           .object({
-            id: z.string().describe('Location ID (e.g., FIPS:37, CITY:US530031, ZIP:98101).'),
+            id: z.string().describe('Location ID (e.g., FIPS:37, CITY:US530018, ZIP:98101).'),
             name: z.string().describe('Human-readable location name.'),
             datacoverage: z
               .number()
@@ -84,15 +117,27 @@ export const noaaClimateFindLocations = tool('noaa_climate_find_locations', {
           .describe('A single location entry.'),
       )
       .describe('Matching locations.'),
+    appliedNameFilter: z
+      .string()
+      .optional()
+      .describe(
+        'The nameContains value this response was filtered by. Present only when nameContains was supplied; every count below then describes the filtered set, not the whole category.',
+      ),
     metadata: z
       .object({
         resultset: z
           .object({
-            count: z.number().describe('Total number of matching locations.'),
+            count: z
+              .number()
+              .describe(
+                'Total number of matching locations — the post-filter match count when appliedNameFilter is present.',
+              ),
             limit: z.number().describe('Page size used for this response.'),
             offset: z
               .number()
-              .describe('1-based starting index of this page as returned by the NOAA CDO API.'),
+              .describe(
+                'Starting index of this page: 1-based as returned by the NOAA CDO API, or the zero-based offset you supplied when appliedNameFilter is present.',
+              ),
           })
           .describe('Pagination cursor fields for this response.'),
       })
@@ -131,43 +176,131 @@ export const noaaClimateFindLocations = tool('noaa_climate_find_locations', {
       recovery:
         'Verify filter IDs — use noaa_climate_list_data_categories to list valid datacategoryId values and noaa_climate_list_datasets to list valid datasetId values.',
     },
+    {
+      reason: 'name_filter_requires_category',
+      code: JsonRpcErrorCode.ValidationError,
+      when: 'nameContains was supplied without a locationCategoryId to scope the enumeration.',
+      recovery:
+        'Add a locationCategoryId alongside nameContains — noaa_climate_list_location_categories lists the valid values.',
+    },
+    {
+      reason: 'name_filter_category_too_large',
+      code: JsonRpcErrorCode.ValidationError,
+      when: 'The requested locationCategoryId holds more locations than nameContains can enumerate.',
+      recovery:
+        'Narrow the category with datasetId or datacategoryId, search a smaller category, or drop nameContains and page through results with sortField=name.',
+    },
   ],
 
   async handler(input, ctx) {
     ctx.log.info('Finding locations', {
       locationCategoryId: input.locationCategoryId,
       datasetId: input.datasetId,
+      nameContains: input.nameContains,
     });
 
     const service = getCdoService();
-    const params = {
+    const domainParams = {
       locationcategoryid: input.locationCategoryId,
       datasetid: input.datasetId,
       datacategoryid: input.datacategoryId,
-      startdate: input.startDate,
-      enddate: input.endDate,
+      startdate: toCdoWireDate(input.startDate),
+      enddate: toCdoWireDate(input.endDate),
       sortfield: input.sortField,
       sortorder: input.sortOrder,
-      limit: input.limit,
-      offset: input.offset,
     };
-    let response: Awaited<ReturnType<typeof service.findLocations>>;
-    try {
-      response = await service.findLocations(params, ctx);
-    } catch (err) {
-      if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
-        throw ctx.fail('validation_error', err.message, ctx.recoveryFor('validation_error'));
-      }
-      throw err;
-    }
 
-    const results = (response.results ?? []).map((loc) => ({
+    /** Map an upstream HTTP 400 onto the declared validation_error reason. */
+    const fetchPage = async (limit: number, offset: number) => {
+      try {
+        return await service.findLocations({ ...domainParams, limit, offset }, ctx);
+      } catch (err) {
+        if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
+          throw ctx.fail('validation_error', err.message, ctx.recoveryFor('validation_error'));
+        }
+        throw err;
+      }
+    };
+
+    const toOutput = (loc: CdoLocation) => ({
       id: loc.id,
       name: loc.name,
       ...(typeof loc.datacoverage === 'number' && { datacoverage: loc.datacoverage }),
       ...(loc.mindate && { mindate: loc.mindate }),
       ...(loc.maxdate && { maxdate: loc.maxdate }),
-    }));
+    });
+
+    if (input.nameContains !== undefined) {
+      // Cross-field rules live here rather than in a schema .refine(): input
+      // parsing runs before ctx exists, so a schema-level rejection arrives as a
+      // bare InvalidParams and cannot carry the declared recovery hint.
+      if (!input.locationCategoryId) {
+        throw ctx.fail(
+          'name_filter_requires_category',
+          'nameContains needs a locationCategoryId — the name match is applied to one enumerated category, not to every location type.',
+          ctx.recoveryFor('name_filter_requires_category'),
+        );
+      }
+
+      // The first page doubles as the size probe: CDO reports the category's
+      // full count in its metadata, so eligibility is decided from a live
+      // number rather than from a category name.
+      const first = await fetchPage(ENUMERATION_PAGE_SIZE, 0);
+      const categoryCount = first.metadata?.resultset.count ?? first.results?.length ?? 0;
+      if (categoryCount > MAX_ENUMERABLE_CATEGORY) {
+        throw ctx.fail(
+          'name_filter_category_too_large',
+          `Category "${input.locationCategoryId}" holds ${categoryCount} locations, more than the ${MAX_ENUMERABLE_CATEGORY} nameContains can enumerate.`,
+          {
+            locationCategoryId: input.locationCategoryId,
+            categoryCount,
+            maxEnumerable: MAX_ENUMERABLE_CATEGORY,
+            ...ctx.recoveryFor('name_filter_category_too_large'),
+          },
+        );
+      }
+
+      const all: CdoLocation[] = [...(first.results ?? [])];
+      for (let page = 1; page < MAX_ENUMERATION_PAGES && all.length < categoryCount; page++) {
+        const next = await fetchPage(ENUMERATION_PAGE_SIZE, page * ENUMERATION_PAGE_SIZE);
+        const batch = next.results ?? [];
+        if (batch.length === 0) break;
+        all.push(...batch);
+      }
+
+      const needle = input.nameContains.toLowerCase();
+      const filtered = all.filter((loc) => loc.name.toLowerCase().includes(needle));
+      const filteredCount = filtered.length;
+      const page = filtered.slice(input.offset, input.offset + input.limit).map(toOutput);
+
+      ctx.enrich.total(filteredCount);
+      // ctx.enrich.notice is last-wins — exactly one of these branches may fire.
+      if (filteredCount > 0 && input.offset >= filteredCount) {
+        ctx.enrich({ exhausted: true });
+        ctx.enrich.notice(
+          `Page is empty because offset ${input.offset} is past the end of ${filteredCount} locations matching nameContains="${input.nameContains}". Lower offset or reset it to 0.`,
+        );
+      } else if (filteredCount === 0) {
+        ctx.enrich.notice(
+          `No locations in category "${input.locationCategoryId}" contain "${input.nameContains}". Try a shorter or differently spelled fragment, or drop nameContains to browse the ${categoryCount} locations in this category.`,
+        );
+      }
+
+      return {
+        results: page,
+        appliedNameFilter: input.nameContains,
+        // Synthesized from the filtered view. CDO's own echo describes the
+        // internal enumeration fetch the caller never made, so relaying it
+        // would report a total that is not the one this response answers.
+        metadata: {
+          resultset: { count: filteredCount, limit: input.limit, offset: input.offset },
+        },
+      };
+    }
+
+    const params = { ...domainParams, limit: input.limit, offset: input.offset };
+    const response = await fetchPage(input.limit, input.offset);
+    const results = (response.results ?? []).map(toOutput);
 
     const { totalCount, exhausted } = await resolveCollectionTotal(
       response,
@@ -200,6 +333,11 @@ export const noaaClimateFindLocations = tool('noaa_climate_find_locations', {
 
   format(result) {
     const lines: string[] = [];
+    if (result.appliedNameFilter !== undefined) {
+      lines.push(
+        `**Name filter:** \`${result.appliedNameFilter}\` — counts below are post-filter.`,
+      );
+    }
     const meta = result.metadata?.resultset;
     if (meta) {
       lines.push(
