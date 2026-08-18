@@ -15,6 +15,8 @@ import type {
   CdoDataType,
   CdoListParams,
   CdoLocation,
+  CdoLocationCategory,
+  CdoPaginationParams,
   CdoStation,
 } from './types.js';
 
@@ -133,6 +135,19 @@ export class CdoService {
     ctx: Context,
   ): Promise<CdoCollectionResponse<CdoDataCategory>> {
     return this.get<CdoCollectionResponse<CdoDataCategory>>('datacategories', params, ctx);
+  }
+
+  /**
+   * Fetch the location categories that scope `/locations`.
+   *
+   * Pagination and sort only: CDO ignores every domain filter on this endpoint,
+   * so the narrower param type keeps one from being sent and read as applied.
+   */
+  listLocationCategories(
+    params: CdoPaginationParams,
+    ctx: Context,
+  ): Promise<CdoCollectionResponse<CdoLocationCategory>> {
+    return this.get<CdoCollectionResponse<CdoLocationCategory>>('locationcategories', params, ctx);
   }
 
   /** Fetch data types, optionally filtered. */

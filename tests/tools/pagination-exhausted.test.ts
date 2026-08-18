@@ -13,6 +13,7 @@ import { noaaClimateFindStations } from '@/mcp-server/tools/definitions/noaa-cli
 import { noaaClimateListDataCategories } from '@/mcp-server/tools/definitions/noaa-climate-list-data-categories.tool.js';
 import { noaaClimateListDataTypes } from '@/mcp-server/tools/definitions/noaa-climate-list-data-types.tool.js';
 import { noaaClimateListDatasets } from '@/mcp-server/tools/definitions/noaa-climate-list-datasets.tool.js';
+import { noaaClimateListLocationCategories } from '@/mcp-server/tools/definitions/noaa-climate-list-location-categories.tool.js';
 
 vi.mock('@/services/cdo/cdo-service.js', () => ({
   getCdoService: vi.fn(),
@@ -94,6 +95,13 @@ const TOOLS = [
     method: 'listDataCategories',
     args: {},
     noticeMatch: /No data categories/i,
+  },
+  {
+    name: 'noaa_climate_list_location_categories',
+    def: noaaClimateListLocationCategories,
+    method: 'listLocationCategories',
+    args: {},
+    noticeMatch: /No location categories/i,
   },
   {
     name: 'noaa_climate_fetch_data',

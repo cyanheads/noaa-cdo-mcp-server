@@ -31,6 +31,17 @@ export type CdoDataCategory = {
   name: string;
 };
 
+/**
+ * A CDO location category (e.g. CITY, ST, HYD_REG).
+ *
+ * Shape-identical to `CdoDataCategory`, kept distinct to match the per-endpoint
+ * nominal typing the rest of this module uses.
+ */
+export type CdoLocationCategory = {
+  id: string;
+  name: string;
+};
+
 /** A CDO data type (e.g. TMAX, TMIN, PRCP). */
 export type CdoDataType = {
   id: string;
@@ -89,3 +100,16 @@ export type CdoListParams = {
   units?: string | undefined;
   includemetadata?: boolean | undefined;
 };
+
+/**
+ * Parameters accepted by `/locationcategories`.
+ *
+ * Verified live: that endpoint ignores every domain filter — `datasetid`,
+ * `locationid`, `stationid`, and the date range all return the same unfiltered
+ * 12 rows — so the narrower type keeps a filter that would silently do nothing
+ * from reaching the query string.
+ */
+export type CdoPaginationParams = Pick<
+  CdoListParams,
+  'sortfield' | 'sortorder' | 'limit' | 'offset' | 'includemetadata'
+>;

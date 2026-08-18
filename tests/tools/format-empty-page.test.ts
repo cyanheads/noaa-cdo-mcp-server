@@ -15,6 +15,7 @@ import { noaaClimateFindStations } from '@/mcp-server/tools/definitions/noaa-cli
 import { noaaClimateListDataCategories } from '@/mcp-server/tools/definitions/noaa-climate-list-data-categories.tool.js';
 import { noaaClimateListDataTypes } from '@/mcp-server/tools/definitions/noaa-climate-list-data-types.tool.js';
 import { noaaClimateListDatasets } from '@/mcp-server/tools/definitions/noaa-climate-list-datasets.tool.js';
+import { noaaClimateListLocationCategories } from '@/mcp-server/tools/definitions/noaa-climate-list-location-categories.tool.js';
 import { firstText } from '../helpers/content.js';
 
 const COLLECTION_TOOLS = [
@@ -24,11 +25,12 @@ const COLLECTION_TOOLS = [
   ['noaa_climate_list_data_categories', noaaClimateListDataCategories],
   ['noaa_climate_list_data_types', noaaClimateListDataTypes],
   ['noaa_climate_list_datasets', noaaClimateListDatasets],
+  ['noaa_climate_list_location_categories', noaaClimateListLocationCategories],
 ] as const;
 
 /** Wording that asserts the query itself found nothing — false on an exhausted page. */
 const NO_MATCH_CLAIM =
-  /matched|no .*(records|stations|locations|datasets|categories|data types) (found|matched)/i;
+  /matched|no .*(records|stations|locations|datasets|categories|data types) (found|matched|were returned)/i;
 
 describe.each(COLLECTION_TOOLS)('%s — empty-page rendering', (_name, def) => {
   it('renders the neutral empty-page line', () => {

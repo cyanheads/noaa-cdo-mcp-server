@@ -14,6 +14,7 @@ import { noaaClimateGetStation } from './mcp-server/tools/definitions/noaa-clima
 import { noaaClimateListDataCategories } from './mcp-server/tools/definitions/noaa-climate-list-data-categories.tool.js';
 import { noaaClimateListDataTypes } from './mcp-server/tools/definitions/noaa-climate-list-data-types.tool.js';
 import { noaaClimateListDatasets } from './mcp-server/tools/definitions/noaa-climate-list-datasets.tool.js';
+import { noaaClimateListLocationCategories } from './mcp-server/tools/definitions/noaa-climate-list-location-categories.tool.js';
 import { initCdoService } from './services/cdo/cdo-service.js';
 
 await createApp({
@@ -23,6 +24,7 @@ await createApp({
     noaaClimateListDatasets,
     noaaClimateListDataCategories,
     noaaClimateListDataTypes,
+    noaaClimateListLocationCategories,
     noaaClimateFindLocations,
     noaaClimateFindStations,
     noaaClimateGetStation,
@@ -33,6 +35,7 @@ await createApp({
   instructions: `NOAA Climate Data Online (CDO) API v2 — historical weather observations and climate data.
 Primary workflow: noaa_climate_find_locations → noaa_climate_find_stations → noaa_climate_fetch_data.
 Discovery: noaa_climate_list_datasets → noaa_climate_list_data_categories → noaa_climate_list_data_types.
+Location categories: noaa_climate_list_location_categories enumerates the 12 valid locationCategoryId values.
 Date range limits: daily datasets (GHCND etc.) max 1 year per request; monthly/annual (GSOM, GSOY) max 10 years.
 Always pass units=metric or units=standard to noaa_climate_fetch_data — raw GHCND values are tenths-of-unit integers.`,
   landing: { requireAuth: false },
