@@ -13,15 +13,19 @@ import { noaaClimateGetStation } from '@/mcp-server/tools/definitions/noaa-clima
 import { noaaClimateListDataCategories } from '@/mcp-server/tools/definitions/noaa-climate-list-data-categories.tool.js';
 import { noaaClimateListDataTypes } from '@/mcp-server/tools/definitions/noaa-climate-list-data-types.tool.js';
 import { noaaClimateListDatasets } from '@/mcp-server/tools/definitions/noaa-climate-list-datasets.tool.js';
+import { noaaClimateListLocationCategories } from '@/mcp-server/tools/definitions/noaa-climate-list-location-categories.tool.js';
+import { noaaClimateSearchStormEvents } from '@/mcp-server/tools/definitions/noaa-climate-search-storm-events.tool.js';
 
 const tools = [
   noaaClimateListDatasets,
   noaaClimateListDataCategories,
   noaaClimateListDataTypes,
+  noaaClimateListLocationCategories,
   noaaClimateFindLocations,
   noaaClimateFindStations,
   noaaClimateGetStation,
   noaaClimateFetchData,
+  noaaClimateSearchStormEvents,
 ];
 
 describe('tool naming', () => {
@@ -35,6 +39,8 @@ describe('tool naming', () => {
         'noaa_climate_list_data_categories',
         'noaa_climate_list_data_types',
         'noaa_climate_list_datasets',
+        'noaa_climate_list_location_categories',
+        'noaa_climate_search_storm_events',
       ].sort(),
     );
   });
