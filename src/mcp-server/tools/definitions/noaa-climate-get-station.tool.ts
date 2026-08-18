@@ -11,11 +11,11 @@ import { getCdoService } from '@/services/cdo/cdo-service.js';
 export const noaaClimateGetStation = tool('noaa_climate_get_station', {
   title: 'Get NOAA Climate Station',
   description:
-    'Fetch full metadata for a single weather station by its ID (e.g., "GHCND:USC00450974", "COOP:010008"). Returns name, coordinates, elevation, and the full date range for which data is available. Use when you have a station ID from noaa_climate_find_stations and want its complete details, or to verify a station before querying data.',
+    'Fetch full metadata for a single weather station by its ID (e.g., "GHCND:USW00024233", "COOP:010008"). Returns name, coordinates, elevation, and the full date range for which data is available. Use when you have a station ID from noaa_climate_find_stations and want its complete details, or to verify a station before querying data.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
     stationId: identifierFilter(
-      'Station ID to fetch (e.g., "GHCND:USC00450974", "COOP:010008"). Obtain from noaa_climate_find_stations.',
+      'Station ID to fetch (e.g., "GHCND:USW00024233", "COOP:010008"). Obtain from noaa_climate_find_stations.',
     ),
   }),
   output: z.object({
@@ -61,7 +61,7 @@ export const noaaClimateGetStation = tool('noaa_climate_get_station', {
       code: JsonRpcErrorCode.NotFound,
       when: 'Station ID format is valid but no station exists with that ID.',
       recovery:
-        'Verify the station ID format (e.g., GHCND:USC00450974) and use noaa_climate_find_stations to discover valid IDs.',
+        'Verify the station ID format (e.g., GHCND:USW00024233) and use noaa_climate_find_stations to discover valid IDs.',
     },
     {
       reason: 'service_unavailable',
@@ -79,11 +79,11 @@ export const noaaClimateGetStation = tool('noaa_climate_get_station', {
     const st = await service.getStation(input.stationId, ctx);
 
     if (!st.id)
-      throw ctx.fail('not_found', `Station "${input.stationId}" not found.`, {
-        recovery: {
-          hint: 'Verify the station ID format (e.g., GHCND:USW00450974) and use noaa_climate_find_stations to discover valid IDs.',
-        },
-      });
+      throw ctx.fail(
+        'not_found',
+        `Station "${input.stationId}" not found.`,
+        ctx.recoveryFor('not_found'),
+      );
 
     return {
       id: st.id,
