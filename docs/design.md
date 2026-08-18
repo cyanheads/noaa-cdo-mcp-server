@@ -9,7 +9,8 @@
 | `noaa_climate_list_datasets` | List available NOAA CDO datasets, optionally filtered by data type, location, station, or date range. Returns dataset IDs, names, and temporal coverage. | `datatypeId[]?`, `locationId?`, `startDate?`, `endDate?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: false` |
 | `noaa_climate_list_data_types` | List available data types (TMAX, TMIN, PRCP, SNOW, etc.), optionally filtered by dataset, data category, location, or station. Use to discover what measurements are available before querying data. | `datasetId?`, `datacategoryId?`, `locationId?`, `stationId?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: false` |
 | `noaa_climate_list_data_categories` | List data categories (Temperature, Precipitation, Wind, etc.) that group related data types. Optionally filter by dataset, location, or station. | `datasetId?`, `locationId?`, `stationId?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: false` |
-| `noaa_climate_find_locations` | Search for locations by category (country, state, county, city, zip, climate region). Optionally filter by dataset, data category, and date range. Use to discover location IDs for narrowing station and data queries. | `locationCategoryId?`, `datasetId?`, `datacategoryId?`, `startDate?`, `endDate?`, `sortField?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: true` |
+| `noaa_climate_list_location_categories` | List the 12 location categories that scope location search. Pagination and sort only — CDO ignores every domain filter on `/locationcategories`. | `sortField?`, `sortOrder?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: false` |
+| `noaa_climate_find_locations` | Search for locations by category (country, state, county, city, zip, climate region). Optionally filter by dataset, data category, and date range, or by name via the client-side `nameContains` filter. Use to discover location IDs for narrowing station and data queries. | `locationCategoryId?`, `nameContains?`, `datasetId?`, `datacategoryId?`, `startDate?`, `endDate?`, `sortField?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: true` |
 | `noaa_climate_find_stations` | Search for weather stations by location, bounding box, dataset, data type, and date range. Returns station IDs, names, coordinates, and data coverage metadata. | `locationId?`, `extent?`, `datasetId?`, `datatypeId?`, `datacategoryId?`, `startDate?`, `endDate?`, `sortField?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: true` |
 | `noaa_climate_get_station` | Fetch full metadata for a single station by ID, including name, coordinates, elevation, and data coverage dates. | `stationId` | `readOnlyHint: true`, `openWorldHint: false` |
 | `noaa_climate_fetch_data` | Fetch historical observation data for a dataset, date range, and one or more stations or locations. Returns time-series values for the requested data types. | `datasetId`, `startDate`, `endDate`, `stationId[]?`, `locationId[]?`, `datatypeId[]?`, `units?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: true` |
@@ -41,7 +42,7 @@ The API wraps `https://www.ncei.noaa.gov/cdo-web/api/v2/`.
 - API token required (free registration at ncdc.noaa.gov/cdo-web/token; token passed as `token` request header)
 - Rate limits: 5 requests/second, 10,000 requests/day per token
 - Seven endpoints exposed: datasets, datacategories, datatypes, locationcategories, locations, stations, data
-- Date range constraints: sub-daily and daily data (GHCND, PRECIP_*, NORMAL_DLY, NORMAL_HLY) limited to 1-year ranges per request; monthly/annual data (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) limited to 10-year ranges
+- Date range constraints: sub-daily, daily, and radar data (GHCND, PRECIP_*, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) limited to 1-year ranges per request; monthly/annual data (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) limited to 10-year ranges
 - Pagination: offset/limit pattern; max 1000 results per request
 - Units: `standard` or `metric` for data endpoint; no scaling without explicit `units` param
 - Base URL: `https://www.ncei.noaa.gov/cdo-web/api/v2/`
@@ -83,8 +84,8 @@ The NOAA CDO data model has five entity types and one data-fetch endpoint:
 | Dataset | `/datasets` or `/datasets/{id}` | `GHCND`, `GSOM`, `GSOY`, `NORMAL_DLY`, `NORMAL_MLY`, `NORMAL_ANN`, `NORMAL_HLY`, `PRECIP_15`, `PRECIP_HLY`, `NEXRAD2`, `NEXRAD3` | 11–13 via API; primary ones are GHCND, GSOM, GSOY, NORMAL_DLY |
 | Data category | `/datacategories` or `/datacategories/{id}` | `TEMP`, `PRCP`, `WIND`, `PRES`, `SUN`, `SKY`, `WXTYPE`, `ANNAGR`, etc. | ~41 categories; groups data types |
 | Data type | `/datatypes` or `/datatypes/{id}` | `TMAX`, `TMIN`, `TOBS`, `PRCP`, `SNOW`, `SNWD`, `AWND`, etc. | Hundreds; the actual measurement labels |
-| Location category | `/locationcategories` | `CITY`, `CLIM_DIV`, `CLIM_REG`, `CNTRY`, `CNTY`, `HYD_ACC`, `HYD_CAT`, `HYD_REG`, `HYD_SUB`, `ST`, `ZIP` | ~11 categories; hierarchical geography |
-| Location | `/locations` or `/locations/{id}` | `FIPS:37` (state), `CITY:US390029`, `ZIP:28801`, `CNTRY:US` | Filtered by `locationcategoryid` |
+| Location category | `/locationcategories` | `CITY`, `CLIM_DIV`, `CLIM_REG`, `CNTRY`, `CNTY`, `HYD_ACC`, `HYD_CAT`, `HYD_REG`, `HYD_SUB`, `ST`, `US_TERR`, `ZIP` | 12 categories; hierarchical geography |
+| Location | `/locations` or `/locations/{id}` | `FIPS:37` (state), `CITY:US390029`, `ZIP:28801`, `FIPS:US` (country) | Filtered by `locationcategoryid` |
 | Station | `/stations` or `/stations/{id}` | `GHCND:USC00010008`, `COOP:010008` | Supports bounding box via `extent` param |
 | Data | `/data` | n/a (query-only) | Requires `datasetid`, `startdate`, `enddate`; returns `{date, datatype, station, value, attributes}` |
 
@@ -126,7 +127,7 @@ The most common agent workflow is "find stations near a place, then query histor
 
 | Step | Tool | What it does |
 |:-----|:-----|:-------------|
-| 1 | `noaa_climate_find_locations` | Find a location ID for a city, state, or zip — e.g., `CITY:US530031` for Seattle |
+| 1 | `noaa_climate_find_locations` | Find a location ID for a city, state, or zip — e.g., `CITY:US530018` for Seattle |
 | 2 | `noaa_climate_find_stations` | Find stations within that location that support the desired dataset and data types |
 | 3 | `noaa_climate_fetch_data` | Fetch observations for chosen stations over the desired date range |
 
@@ -160,7 +161,7 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
 - **Description**: List available NOAA CDO datasets with their IDs, names, and temporal coverage. Returns all ~11 datasets by default (no required params). Optionally filter to datasets that contain a specific data type, cover a location or station, or overlap a date range.
 - **Input**: `datatypeId?: string[]`, `locationId?: string`, `stationId?: string`, `startDate?: string` (ISO), `endDate?: string` (ISO), `sortField?: enum('id'|'name'|'mindate'|'maxdate'|'datacoverage')`, `sortOrder?: enum('asc'|'desc')`, `limit: number (default 25, max 1000)`, `offset: number (default 0)`
 - **Output**: `{ results: Array<{ id, name, datacoverage, mindate, maxdate }>, metadata: { resultset: { count, limit, offset } } }`
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'invalid_params', code: InvalidParams, when: 'Bad date format or unknown ID' }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'validation_error', code: ValidationError, when: 'Bad date format or unknown ID' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: false`
 
 ### `noaa_climate_list_data_categories`
@@ -179,12 +180,20 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
 - **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: false`
 
+### `noaa_climate_list_location_categories`
+
+- **Description**: List the location categories that scope `noaa_climate_find_locations` — 12 in total: `CITY`, `CLIM_DIV`, `CLIM_REG`, `CNTRY`, `CNTY`, `HYD_ACC`, `HYD_CAT`, `HYD_REG`, `HYD_SUB`, `ST`, `US_TERR`, `ZIP`. Call it when the `locationCategoryId` to use is unknown.
+- **Input**: `sortField?: enum('id'|'name')`, `sortOrder?: enum('asc'|'desc')`, `limit: number (default 25, max 1000)`, `offset: number (default 0)`. No domain filters — CDO ignores `datasetid`, `locationid`, `stationid`, and the date range on `/locationcategories`, verified live.
+- **Output**: `{ results: Array<{ id, name }>, metadata: { resultset: { count, limit, offset } } }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'validation_error', code: ValidationError, when: 'A pagination or sort parameter is not recognized' }`
+- **Annotations**: `readOnlyHint: true`, `openWorldHint: false`
+
 ### `noaa_climate_find_locations`
 
-- **Description**: Search for geographic locations by category (CITY, ST, CNTY, CNTRY, ZIP, CLIM_REG, etc.). Returns location IDs used in station search and data queries. Without `locationCategoryId`, returns all location types. Use `locationCategoryId=ST` to list US states (small set, ~52), `locationCategoryId=CITY` for cities (large set — thousands of pages at default limit). The API has no name-search parameter; to find a specific city, sort alphabetically with `sortField=name` and page through results. Location IDs follow formats like `FIPS:37` (state), `CITY:US530031` (city), `ZIP:98101`.
-- **Input**: `locationCategoryId?: string` (e.g., `ST`, `CITY`, `CNTY`, `CNTRY`, `ZIP`, `CLIM_REG`) — `.describe('Category filter. Use ST for states (~52 entries), CNTY for counties, CITY for cities (large set, thousands of entries), CNTRY for countries, ZIP for zip codes, CLIM_REG for NOAA climate regions.')`, `datasetId?: string`, `datacategoryId?: string`, `startDate?: string`, `endDate?: string`, `sortField?: enum('id'|'name'|'mindate'|'maxdate'|'datacoverage')`, `sortOrder?: enum('asc'|'desc')`, `limit: number (default 25, max 1000)`, `offset: number (default 0)`
-- **Output**: `{ results: Array<{ id, name, datacoverage, mindate, maxdate }>, metadata: { resultset: { count, limit, offset } } }`
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'no_results', code: NotFound, when: 'Valid query but no locations match the filters' }`
+- **Description**: Search for geographic locations by category (CITY, ST, CNTY, CNTRY, ZIP, CLIM_REG, etc.). Returns location IDs used in station search and data queries. Without `locationCategoryId`, returns all location types. Use `locationCategoryId=ST` to list US states (51), `locationCategoryId=CITY` for cities (1,989). The API has no name-search parameter, so `nameContains` synthesizes one client-side for any category of at most 4,000 locations; past that limit — `ZIP` (30,415) — narrow with `datasetId`/`datacategoryId`, or sort alphabetically with `sortField=name` and page through results. Location IDs follow formats like `FIPS:37` (state), `CITY:US530018` (city), `ZIP:98101`.
+- **Input**: `locationCategoryId?: string` (e.g., `ST`, `CITY`, `CNTY`, `CNTRY`, `ZIP`, `US_TERR`, `CLIM_REG`; enumerate with `noaa_climate_list_location_categories`), `nameContains?: string` — case-insensitive substring match applied after a full client-side enumeration of the category; requires `locationCategoryId` and a category of at most 4,000 locations, `datasetId?: string`, `datacategoryId?: string`, `startDate?: string`, `endDate?: string`, `sortField?: enum('id'|'name'|'mindate'|'maxdate'|'datacoverage')`, `sortOrder?: enum('asc'|'desc')`, `limit: number (default 25, max 1000)`, `offset: number (default 0)`
+- **Output**: `{ results: Array<{ id, name, datacoverage, mindate, maxdate }>, appliedNameFilter?: string, metadata: { resultset: { count, limit, offset } } }`. With `nameContains` active, `count` is the exact post-filter match total and `offset` echoes the caller's zero-based offset — never CDO's raw echo from the internal enumeration fetch.
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'validation_error', code: ValidationError, when: 'A filter parameter is not recognized by the CDO API' }`, `{ reason: 'name_filter_requires_category', code: ValidationError, when: 'nameContains supplied without locationCategoryId' }`, `{ reason: 'name_filter_category_too_large', code: ValidationError, when: 'The category holds more locations than nameContains can enumerate' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: true`
 
 ### `noaa_climate_find_stations`
@@ -192,40 +201,40 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
 - **Description**: Search for weather observation stations by location, bounding box, dataset, and data type. Returns station IDs, names, coordinates, elevation, and data coverage dates. Filters by `locationId` (e.g., `FIPS:37` for NC), `extent` (lat/lon bounding box as `"minLat,minLon,maxLat,maxLon"`), `datasetId`, `datatypeId`, and date range. Station IDs returned here are used as `stationId` in `noaa_climate_fetch_data`.
 - **Input**: `locationId?: string`, `extent?: string` (e.g., `"47.5,-122.4,47.7,-122.1"`), `datasetId?: string`, `datatypeId?: string[]`, `datacategoryId?: string`, `startDate?: string`, `endDate?: string`, `sortField?`, `sortOrder?`, `limit`, `offset`
 - **Output**: `{ results: Array<{ id, name, latitude, longitude, elevation, mindate, maxdate, datacoverage }>, metadata: { resultset: { count, limit, offset } } }`
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'no_results', code: NotFound, when: 'Valid query but no stations match the filters' }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: true`
 
 ### `noaa_climate_get_station`
 
-- **Description**: Fetch full metadata for a single weather station by its ID (e.g., `GHCND:USC00450974`, `COOP:010008`). Returns name, coordinates, elevation, and the full date range for which data is available. Use when you have a station ID from `noaa_climate_find_stations` and want its details.
-- **Input**: `stationId: string` (e.g., `GHCND:USC00450974`)
+- **Description**: Fetch full metadata for a single weather station by its ID (e.g., `GHCND:USW00024233`, `COOP:010008`). Returns name, coordinates, elevation, and the full date range for which data is available. Use when you have a station ID from `noaa_climate_find_stations` and want its details.
+- **Input**: `stationId: string` (e.g., `GHCND:USW00024233`)
 - **Output**: `{ id, name, latitude, longitude, elevation, mindate, maxdate, datacoverage }`
 - **Errors**: `{ reason: 'not_found', code: NotFound, when: 'Station ID format is valid but no station exists with that ID' }`, `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: false`
 
 ### `noaa_climate_fetch_data`
 
-- **Description**: Fetch historical observation records from a NOAA CDO dataset for a given date range. Requires a `datasetId` (e.g., `GHCND` for daily, `GSOM` for monthly), `startDate`, and `endDate`. Optionally scope to specific stations, locations, and data types. Sub-daily and daily data (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) is limited to a 1-year date range per request; monthly and annual data (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) is limited to 10 years. Returns a flat array of `{ date, datatype, station, value, attributes }` records. Specify `units=metric` or `units=standard` to scale values; without a `units` parameter, raw unscaled values are returned — for GHCND, temperatures are in tenths of degrees and precipitation in tenths of mm (e.g., raw TMAX=256 → 25.6°C with `units=metric`; raw PRCP=12 → 1.2mm).
+- **Description**: Fetch historical observation records from a NOAA CDO dataset for a given date range. Requires a `datasetId` (e.g., `GHCND` for daily, `GSOM` for monthly), `startDate`, and `endDate`. Optionally scope to specific stations, locations, and data types. Sub-daily, daily, and radar data (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) is limited to a 1-year date range per request; monthly and annual data (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) is limited to 10 years. Returns a flat array of `{ date, datatype, station, value, attributes }` records. Specify `units=metric` or `units=standard` to scale values; without a `units` parameter, raw unscaled values are returned — for GHCND, temperatures are in tenths of degrees and precipitation in tenths of mm (e.g., raw TMAX=256 → 25.6°C with `units=metric`; raw PRCP=12 → 1.2mm).
 - **Input**:
-  - `datasetId: string` — `.describe('Dataset ID (e.g., GHCND for daily data, GSOM for monthly, GSOY for annual, NORMAL_DLY/MLY/ANN/HLY for 1981-2010 climate normals). Determines the date range limit: sub-daily and daily datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) allow 1-year max per request; monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) allow 10-year max.')` 
+  - `datasetId: string` — `.describe('Dataset ID (e.g., GHCND for daily data, GSOM for monthly, GSOY for annual, NORMAL_DLY/MLY/ANN/HLY for 1981-2010 climate normals, NEXRAD2/NEXRAD3 for weather radar). Determines the date range limit: sub-daily, daily, and radar datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) allow 1-year max per request; monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) allow 10-year max.')` 
   - `startDate: string` (ISO date `YYYY-MM-DD`) — `.describe('Start date for observations. For NORMAL_* datasets use 2010-01-01 regardless of the years being analyzed.')`
-  - `endDate: string` (ISO date `YYYY-MM-DD`) — `.describe('End date for observations. Must be within 1 year of startDate for sub-daily/daily datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) or within 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN). For any NORMAL_* dataset use 2010-12-31.')`
-  - `stationId?: string[]` — `.describe('One or more station IDs to filter by (e.g., ["GHCND:USC00450974"]). Obtain from noaa_climate_find_stations. Serialized to ampersand-chained query params.')`
+  - `endDate: string` (ISO date `YYYY-MM-DD`) — `.describe('End date for observations. Must be within 1 year of startDate for sub-daily/daily/radar datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) or within 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN). For any NORMAL_* dataset use 2010-12-31.')`
+  - `stationId?: string[]` — `.describe('One or more station IDs to filter by (e.g., ["GHCND:USW00024233"]). Obtain from noaa_climate_find_stations. Serialized to ampersand-chained query params.')`
   - `locationId?: string[]` — `.describe('One or more location IDs to filter by (e.g., ["FIPS:37", "ZIP:98101"]). Broader than stationId — returns all data within the location.')`
   - `datatypeId?: string[]` — `.describe('One or more data type IDs to include (e.g., ["TMAX","TMIN","PRCP"]). Without this, all data types for the dataset are returned. Use noaa_climate_list_data_types to discover valid IDs.')`
   - `units?: enum('standard'|'metric')` — `.describe('Unit system for returned values. Without this, GHCND returns raw tenths-of-unit integers (TMAX=256 = 25.6°C). Strongly recommended: pass metric or standard to get human-readable scaled values.')`
   - `includemetadata?: boolean (default true)`
   - `sortField?`, `sortOrder?`, `limit`, `offset`
 - **Output**: `{ results: Array<{ date, datatype, station, value, attributes }>, metadata?: { resultset: { count, limit, offset } } }`
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'date_range_exceeded', code: InvalidParams, when: 'Date range exceeds 1 year for sub-daily/daily datasets (GHCND, PRECIP_*, NORMAL_DLY, NORMAL_HLY) or 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN)' }`, `{ reason: 'invalid_params', code: InvalidParams, when: 'Bad dataset ID, date format, or unknown station/location ID' }`, `{ reason: 'no_results', code: NotFound, when: 'Valid query but no observations exist for the given filters and date range' }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'date_range_exceeded', code: InvalidParams, when: 'Date range exceeds 1 year for sub-daily/daily/radar datasets (GHCND, PRECIP_*, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) or 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN)' }`, `{ reason: 'validation_error', code: ValidationError, when: 'Bad dataset ID, date format, or unknown station/location ID' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: true`
 
 ---
 
 ## Design Decisions
 
-**1. No `noaa_climate_list_location_categories` tool.**
-The CDO API has a `/locationcategories` endpoint, but there are only ~11 categories (`CITY`, `ST`, `CNTY`, `CNTRY`, `ZIP`, etc.) and they're stable. Surfacing them as a discovery tool adds a call step without meaningful value — the categories are documented in the `noaa_climate_find_locations` parameter description. Agents that need them can read the description; a separate tool would be dead weight.
+**1. `noaa_climate_list_location_categories` is a first-class discovery tool.**
+`/locationcategories` returns 12 stable ID/name pairs. Keeping them in the `noaa_climate_find_locations` parameter prose alone let one — `US_TERR` — go missing, and left the hydrological categories buried in a sentence rather than reachable by a call. The tool takes pagination and sort only: CDO ignores `datasetid`, `locationid`, `stationid`, and the date range on this endpoint, so offering those filters would advertise narrowing that never happens.
 
 **2. `noaa_climate_find_locations` has `openWorldHint: true`, discovery tools have `false`.**
 Datasets, categories, and data types are small, bounded, stable lists (the full universe fits in one or two pages). Locations — cities, counties, zip codes — are a large open corpus. `openWorldHint` accurately communicates this to clients.
@@ -253,8 +262,8 @@ The CDO API supports comma-separated or chained IDs for filtering. Accepting arr
 ## Known Limitations
 
 - **No geocoding.** The CDO API has no lat/lon-to-location-name lookup. Agents that start with a place name must either know the location ID (e.g., FIPS code) or use `noaa_climate_find_locations` to search by name within a category.
-- **No text search on locations.** The `/locations` endpoint has no name-search or substring-filter parameter — only `sortfield=name` for alphabetical ordering. Agents that need a city ID must fetch all cities with `locationCategoryId=CITY` (possibly multiple pages) and scan results for the target name, or use a known location ID format (e.g., `FIPS:37` for NC). Station search by `locationId` similarly requires an exact location ID — there is no name-based lookup.
-- **Date range limits.** Sub-daily and daily datasets are limited to 1-year per request; monthly/annual to 10 years. Multi-year daily analyses require sequential requests — each consuming daily quota.
+- **No upstream text search on locations.** The `/locations` endpoint has no name-search or substring-filter parameter — only `sortfield=name` for alphabetical ordering. `noaa_climate_find_locations` synthesizes one client-side via `nameContains`: it enumerates the requested category (up to four `limit=1000` fetches, the largest burst that fits inside CDO's 5-requests-per-second limit) and substring-matches the names, which covers every category of at most 4,000 locations — every one but `ZIP` (30,415). Past the limit, narrow with `datasetId`/`datacategoryId`, page alphabetically, or use a known location ID format (e.g., `FIPS:37` for NC). Station search by `locationId` still requires an exact location ID — there is no name-based station lookup.
+- **Date range limits.** Sub-daily, daily, and radar datasets are limited to 1-year per request; monthly/annual to 10 years. Multi-year daily analyses require sequential requests — each consuming daily quota.
 - **10,000 requests/day ceiling.** Bulk historical analysis across many stations and long date ranges will hit the daily limit. Agents should prefer monthly (GSOM) or annual (GSOY) datasets when fine-grained daily data isn't needed.
 - **Raw units by default.** Without `units=metric` or `units=standard`, GHCND returns unscaled integer values (TMAX=256 = raw tenths-of-degrees-C, i.e., 25.6°C). GSOM/GSOY values are already scaled. Always recommend passing a `units` parameter so agents don't receive raw tenths-of-unit integers they must interpret manually. The `format()` function should annotate the unit system actually applied.
 - **Climate normals are date-range-fixed.** NORMAL_DLY/MLY/ANN/HLY normals are the 1981–2010 climatological normals. Despite spanning 30 years of source data, they are accessed with `startdate=2010-01-01` and `enddate=2010-12-31` — the API uses 2010 as the proxy year for all normals queries. This is an API convention, not a bug.
@@ -281,7 +290,7 @@ Header: `token: <NOAA_CDO_TOKEN>`
 ### Date Range Constraints (data endpoint)
 | Dataset type | Max range per request |
 |:-------------|:----------------------|
-| Sub-daily and daily (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) | 1 year |
+| Sub-daily, daily, and radar (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) | 1 year |
 | Monthly/Annual (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) | 10 years |
 
 ### Common Location ID Formats
@@ -289,15 +298,15 @@ Header: `token: <NOAA_CDO_TOKEN>`
 |:-------|:--------|:--------|
 | `FIPS:{2-digit}` | `FIPS:37` | US state (FIPS code) |
 | `FIPS:{5-digit}` | `FIPS:37021` | US county |
-| `CITY:{id}` | `CITY:US530031` | City |
+| `CITY:{id}` | `CITY:US530018` | City |
 | `ZIP:{5-digit}` | `ZIP:98101` | US zip code |
-| `CNTRY:{2-letter}` | `CNTRY:US` | Country |
+| `FIPS:{2-letter}` | `FIPS:US` | Country (the `CNTRY` category, but IDs carry the `FIPS:` prefix) |
 | `CLIM_REG:{id}` | `CLIM_REG:SOUTHATL` | NOAA climate region |
 
 ### Common Station ID Formats
 | Format | Example | Notes |
 |:-------|:--------|:------|
-| `GHCND:{id}` | `GHCND:USC00450974` | GHCND stations (most common for daily data) |
+| `GHCND:{id}` | `GHCND:USW00024233` | GHCND stations (most common for daily data) |
 | `COOP:{id}` | `COOP:010008` | NOAA Cooperative Observer network |
 
 ---
@@ -317,5 +326,12 @@ Header: `token: <NOAA_CDO_TOKEN>`
 | 2026-05-23 | Corrected list response shape: `results` key, not endpoint-named keys | Official CDO API returns `{"results": [...], "metadata": {"resultset": {"limit","count","offset"}}}`. All collection output schemas updated. |
 | 2026-05-23 | Added NORMAL_HLY dataset | Exists as a full CDO dataset (hourly normals) omitted from initial design. |
 | 2026-05-23 | Corrected date range limits for NORMAL_DLY/HLY | API classifies by temporal resolution, not dataset name. NORMAL_DLY and NORMAL_HLY follow the 1-year daily rule; NORMAL_MLY/ANN follow the 10-year monthly/annual rule. |
+| 2026-08-18 | Reversed the 2026-05-23 "No `/locationcategories` tool" decision | The live endpoint returns 12 categories, not the ~11 the original entry assumed — the parameter prose omitted `US_TERR` entirely. The hydrological categories are also the entry point practitioners need, and `nameContains` makes picking a bounded category a real decision. `noaa_climate_list_location_categories` now enumerates them. |
+| 2026-08-18 | `nameContains` eligibility is a live count, never a category allowlist | `HYD_CAT` (2,111) is larger than `CITY` (1,989), so any hardcoded "small categories" list gets it wrong, and a category can grow across the line. The handler reads `metadata.resultset.count` from its own first enumeration fetch and rejects past four `limit=1000` pages — four being the largest burst inside CDO's 5-requests-per-second limit, and 4,000 landing in the 9.6x gap between `CNTY` (3,178) and `ZIP` (30,415). |
+| 2026-08-18 | `nameContains` enumerates fully, then filters, and synthesizes its own `metadata.resultset` | Filtering one upstream page would leave `totalCount` describing the raw category while the results describe the filtered set. Relaying CDO's raw echo reproduces the same lie in `metadata` and `format()`, since it describes an internal fetch the caller never made. |
+| 2026-08-18 | Date-range cap follows CDO's month rule, not a fixed day count | Probing `/data` live: a request is accepted while `endDate` is on or before the last day of the calendar month N years after `startDate`'s month. The old 365/3650-day caps rejected a full leap year (366 days) and a full 10 calendar years (3,652 days) that CDO answers normally. |
+| 2026-08-18 | Date filters go on the wire in the canonical `YYYY-MM-DD[THH:MM:SS]` form, not the caller's string | CDO's parsers disagree with each other: `/data` rejects a compact `startdate` — with the misleading "The date range must be less than 1 year." — and rejects the unpadded dashed form outright, while every other endpoint accepts both. Normalizing at the edge keeps one schema across the whole surface *and* makes every advertised form work everywhere, which passing the caller's string through did not. |
+| 2026-08-18 | `NEXRAD2`/`NEXRAD3` carry the 1-year cap | CDO documents the cap for daily datasets only, yet enforces the same calendar-month boundary on radar: from a 2020-03-10 start, 2021-04-01 answers "The date range must be less than 1 year." while 2021-03-31 gets past the range check. Uncapped, an over-long radar request was forwarded and the caller got that opaque upstream error in place of `date_range_exceeded` and its computed `maxEndDate`. |
+| 2026-08-18 | Example station ID is `GHCND:USW00024233` | `GHCND:USC00450974` never resolved — CDO answers it with a bare `{}` — so an agent following the example landed on `not_found`. Replacements are verified against the live API before landing. |
 | 2026-05-23 | Added typed error contracts to all tools | Structured `{ reason, code, when, retryable }` format required for `ctx.fail` type-checking. |
 | 2026-05-23 | Documented camelCase→lowercase param translation responsibility | CDO API requires lowercase param names; MCP input schemas use camelCase. CdoService owns the translation. |

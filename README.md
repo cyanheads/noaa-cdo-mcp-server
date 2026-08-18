@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.3.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/noaa-climate-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.30.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/noaa-climate-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/noaa-climate-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^7.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.0-blueviolet.svg?style=flat-square)](https://bun.sh/)
+[![Version](https://img.shields.io/badge/Version-0.4.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/noaa-climate-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.30.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/noaa-climate-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/noaa-climate-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^7.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.0-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
@@ -29,14 +29,15 @@
 
 ## Tools
 
-7 tools for working with the NOAA Climate Data Online (CDO) API v2:
+8 tools for working with the NOAA Climate Data Online (CDO) API v2:
 
 | Tool | Description |
 |:---|:---|
 | `noaa_climate_list_datasets` | List available CDO datasets with IDs, names, and temporal coverage |
 | `noaa_climate_list_data_categories` | List data category groups (Temperature, Precipitation, Wind, etc.) |
 | `noaa_climate_list_data_types` | List specific measurement labels (TMAX, TMIN, PRCP, SNOW, etc.) by dataset or category |
-| `noaa_climate_find_locations` | Search geographic locations by category (states, cities, counties, zip codes, climate regions) |
+| `noaa_climate_list_location_categories` | List the 12 location categories that scope location search |
+| `noaa_climate_find_locations` | Search geographic locations by category (states, cities, counties, zip codes, climate regions), with an optional name filter |
 | `noaa_climate_find_stations` | Search weather stations by location, bounding box, dataset, and data type |
 | `noaa_climate_get_station` | Fetch full metadata for a single station by ID |
 | `noaa_climate_fetch_data` | Fetch historical observation records for a dataset and date range |
@@ -74,14 +75,24 @@ List specific measurement labels for a dataset or category.
 
 ---
 
+### `noaa_climate_list_location_categories`
+
+List the location categories that scope `noaa_climate_find_locations` — 12 in total.
+
+- Returns category IDs (`CITY`, `ST`, `CNTY`, `CNTRY`, `ZIP`, `US_TERR`, `CLIM_REG`, `CLIM_DIV`, `HYD_ACC`, `HYD_CAT`, `HYD_REG`, `HYD_SUB`) and their names
+- Call it when you do not know which `locationCategoryId` to pass
+- Pagination and sort only — the CDO endpoint ignores dataset, location, station, and date filters, so none are offered
+
+---
+
 ### `noaa_climate_find_locations`
 
 Search geographic locations by category.
 
-- Category types: `ST` (US states, ~52), `CNTY` (counties), `CITY` (cities), `CNTRY` (countries), `ZIP` (zip codes), `CLIM_REG` (NOAA climate regions), `CLIM_DIV` (climate divisions), hydrological categories
-- Use `locationCategoryId=ST` to list all states in one call; use `sortField=name` with pagination to browse cities alphabetically
-- The CDO API has no name-search parameter — sort by name and page through results to find a specific location
-- Returns location IDs (`FIPS:37`, `CITY:US530031`, `ZIP:98101`) used in station search and data queries
+- Category types: `ST` (US states, 51), `CNTY` (counties), `CITY` (cities), `CNTRY` (countries), `ZIP` (zip codes), `US_TERR` (US territories), `CLIM_REG` (NOAA climate regions), `CLIM_DIV` (climate divisions), hydrological categories — `noaa_climate_list_location_categories` returns the authoritative set
+- Use `locationCategoryId=ST` to list all states in one call
+- `nameContains` gives the name search the CDO API lacks: the server enumerates the requested category and matches the substring case-insensitively, so `locationCategoryId=CITY` with `nameContains=seattle` resolves a city in one call. It is a size rule, not a category list — the category must hold at most 4,000 locations, which is every category but `ZIP` (30,415), and a `datasetId` or `datacategoryId` filter can bring a larger one back under the limit. Past it, page alphabetically with `sortField=name`
+- Returns location IDs (`FIPS:37`, `CITY:US530018`, `ZIP:98101`) used in station search and data queries
 
 ---
 
@@ -92,7 +103,7 @@ Search weather observation stations.
 - Filter by location ID, bounding box (lat/lon), dataset, data type, and date range
 - Returns station IDs, names, coordinates, elevation, and data coverage dates
 - A station must have data for the dataset and date range you want — pass `datasetId` and date range to ensure compatibility
-- Common station ID formats: `GHCND:USC00450974`, `COOP:010008`
+- Common station ID formats: `GHCND:USW00024233`, `COOP:010008`
 - Station IDs returned here feed directly into `noaa_climate_fetch_data`
 
 ---
@@ -112,7 +123,7 @@ Fetch full metadata for a single weather station by ID.
 Fetch historical observation records from a NOAA CDO dataset.
 
 - Requires `datasetId`, `startDate`, and `endDate`; optionally scoped by station, location, and data type
-- **Date range limits:** sub-daily and daily datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY) — 1 year max per request; monthly and annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) — 10 years max
+- **Date range limits:** sub-daily, daily, and radar datasets (GHCND, PRECIP_15, PRECIP_HLY, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) — 1 year max per request; monthly and annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN) — 10 years max
 - **Unit selection:** strongly recommended — pass `units=metric` (SI) or `units=standard` (Fahrenheit/inches). Without it, GHCND values are raw tenths-of-unit integers (TMAX=256 = 25.6°C, PRCP=12 = 1.2mm); GSOM/GSOY are already scaled
 - **Climate normals:** for any NORMAL_* dataset, use `startDate=2010-01-01` and `endDate=2010-12-31` — that is the API proxy year regardless of which 30-year period is described
 - Returns flat tuples of `{ date, datatype, station, value, attributes }` with pagination metadata
