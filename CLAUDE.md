@@ -1,7 +1,7 @@
 # Developer Protocol
 
 **Server:** noaa-climate-mcp-server
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.11.5`
 **Engines:** Bun ≥1.3.0, Node ≥24.0.0
 **MCP SDK:** `@modelcontextprotocol/sdk` ^1.30.0
@@ -13,7 +13,7 @@
 
 ## Domain
 
-NOAA Climate Data Online (CDO) API v2 — historical weather data — plus the NCEI Storm Events Database, a separate bulk-CSV corpus. 9 tools, 2 resources:
+NOAA Climate Data Online (CDO) API v2 — historical weather data — plus two separate NCEI bulk-CSV corpora: the Storm Events Database and Billion-Dollar Weather and Climate Disasters. 10 tools, 2 resources:
 
 - `noaa_climate_list_datasets` — list available CDO datasets
 - `noaa_climate_list_data_categories` — list measurement category groups
@@ -24,13 +24,16 @@ NOAA Climate Data Online (CDO) API v2 — historical weather data — plus the N
 - `noaa_climate_get_station` — fetch full metadata for a single station
 - `noaa_climate_fetch_data` — fetch historical observations with date range validation and unit selection
 - `noaa_climate_search_storm_events` — search NCEI Storm Events for one year (severe-weather events, damage, casualties, narratives)
+- `noaa_climate_get_billion_dollar_disasters` — query NCEI Billion-Dollar Weather and Climate Disasters, per disaster or per year
 - `noaa://datasets` resource — all CDO datasets as injectable context
 - `noaa://stations/{stationId}` resource — station metadata by ID
 
 **Services:**
 
 - `src/services/cdo/cdo-service.ts` — HTTP client with retry/backoff, `NOAA_CDO_TOKEN` header auth.
-- `src/services/storm-events/storm-events-service.ts` — NCEI bulk CSV. No token, no JSON envelope, no `resolveCollectionTotal()`. Resolves each year's `_c<publishDate>`-suffixed filename from the live directory index (it is not constructible), decompresses explicitly (the files carry no `Content-Encoding`), and streams a year through `csv.ts` so the decompressed ~70 MB is never held. Caches the listing and two years of compressed bytes for six hours. Damage parsing lives in `damage.ts` — an empty cell is "not reported", never `0`.
+- `src/services/storm-events/storm-events-service.ts` — NCEI bulk CSV. No token, no JSON envelope, no `resolveCollectionTotal()`. Resolves each year's `_c<publishDate>`-suffixed filename from the live directory index (it is not constructible), decompresses explicitly (the files carry no `Content-Encoding`), and streams a year through the shared CSV reader so the decompressed ~70 MB is never held. Caches the listing and two years of compressed bytes for six hours. Damage parsing lives in `damage.ts` — an empty cell is "not reported", never `0`.
+- `src/services/billion-dollar-disasters/billion-dollar-disasters-service.ts` — NCEI Billion-Dollar Disasters. No token, four small static CSVs (per-event and per-year, national and per-state), each opening with preamble lines ahead of the header. **Each file declares its own cost unit and they differ** — millions for per-event, billions for the national per-year, millions again for a per-state per-year — so the unit is parsed from the file's preamble and applied at one site, `toUsd()`, converting everything to whole US dollars. An unrecognized or absent unit is `malformed_export`, never a guess.
+- `src/services/csv/csv-stream-reader.ts` — the RFC 4180 reader both bulk-CSV services parse with.
 
 ---
 
@@ -346,7 +349,8 @@ When you complete a skill's checklist, check the boxes and add a completion time
 | `bun run tree` | Generate directory structure doc |
 | `bun run format` | Auto-fix formatting (safe fixes only) |
 | `bun run format:unsafe` | Also apply Biome's unsafe autofixes — review the diff; they can change behavior |
-| `bun run test` | Run tests (Vitest — use `bun run test`, not `bun test`) |
+| `bun run test` | Run the hermetic `unit` project (Vitest — use `bun run test`, not `bun test`) |
+| `bun run test:live` | Opt-in `live` project — resolves every example identifier in tool descriptions, README, and `docs/design.md` against the live CDO API. Needs `NOAA_CDO_TOKEN`; kept out of `test` so the default lane stays offline |
 | `bun run start:stdio` | Production mode (stdio) |
 | `bun run start:http` | Production mode (HTTP) |
 | `bun run changelog:build` | Regenerate `CHANGELOG.md` from `changelog/*.md` |

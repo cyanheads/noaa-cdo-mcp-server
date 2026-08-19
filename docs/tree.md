@@ -1,6 +1,6 @@
 # noaa-climate-mcp-server - Directory Structure
 
-Generated on: 2026-08-18 22:19:27
+Generated on: 2026-08-19 00:03:17
 
 ```text
 noaa-climate-mcp-server/
@@ -27,6 +27,7 @@ noaa-climate-mcp-server/
 │   ├── 0.3.x/
 │   ├── 0.4.x/
 │   ├── 0.5.x/
+│   ├── 0.6.x/
 │   └── template.md
 ├── docs/
 │   ├── design.md
@@ -146,10 +147,12 @@ noaa-climate-mcp-server/
 │   │   └── tools/
 │   │       └── definitions/
 │   │           ├── shared/
+│   │           │   ├── upstream-auth.ts
 │   │           │   └── validation.ts
 │   │           ├── noaa-climate-fetch-data.tool.ts
 │   │           ├── noaa-climate-find-locations.tool.ts
 │   │           ├── noaa-climate-find-stations.tool.ts
+│   │           ├── noaa-climate-get-billion-dollar-disasters.tool.ts
 │   │           ├── noaa-climate-get-station.tool.ts
 │   │           ├── noaa-climate-list-data-categories.tool.ts
 │   │           ├── noaa-climate-list-data-types.tool.ts
@@ -157,32 +160,45 @@ noaa-climate-mcp-server/
 │   │           ├── noaa-climate-list-location-categories.tool.ts
 │   │           └── noaa-climate-search-storm-events.tool.ts
 │   ├── services/
+│   │   ├── billion-dollar-disasters/
+│   │   │   ├── billion-dollar-disasters-service.ts
+│   │   │   └── types.ts
 │   │   ├── cdo/
 │   │   │   ├── cdo-service.ts
 │   │   │   ├── pagination.ts
 │   │   │   └── types.ts
+│   │   ├── csv/
+│   │   │   └── csv-stream-reader.ts
 │   │   └── storm-events/
-│   │       ├── csv.ts
 │   │       ├── damage.ts
 │   │       ├── storm-events-service.ts
 │   │       └── types.ts
 │   └── index.ts
 ├── tests/
+│   ├── fixtures/
+│   │   └── billion-dollar-disasters.ts
 │   ├── helpers/
-│   │   └── content.ts
+│   │   ├── content.ts
+│   │   └── example-identifiers.ts
+│   ├── live/
+│   │   └── example-identifiers.live.test.ts
 │   ├── prompts/
 │   ├── resources/
 │   │   ├── noaa-datasets.resource.test.ts
 │   │   └── noaa-station.resource.test.ts
 │   ├── services/
+│   │   ├── billion-dollar-disasters-service.test.ts
+│   │   ├── cdo-error-explanation.test.ts
 │   │   ├── cdo-pagination.test.ts
 │   │   ├── cdo-service-request-options.test.ts
 │   │   ├── cdo-service.test.ts
-│   │   ├── storm-events-csv.test.ts
+│   │   ├── csv-stream-reader.test.ts
 │   │   ├── storm-events-damage.test.ts
 │   │   └── storm-events-service.test.ts
 │   ├── tools/
+│   │   ├── cdo-upstream-rejection-routing.test.ts
 │   │   ├── date-wire-normalization.test.ts
+│   │   ├── example-identifier-extraction.test.ts
 │   │   ├── example-station-id.test.ts
 │   │   ├── fetch-data-date-range.test.ts
 │   │   ├── fetch-data-includemetadata.test.ts
@@ -194,6 +210,7 @@ noaa-climate-mcp-server/
 │   │   ├── noaa-climate-find-locations.tool.test.ts
 │   │   ├── noaa-climate-find-stations-extended.tool.test.ts
 │   │   ├── noaa-climate-find-stations.tool.test.ts
+│   │   ├── noaa-climate-get-billion-dollar-disasters.tool.test.ts
 │   │   ├── noaa-climate-get-station-extended.tool.test.ts
 │   │   ├── noaa-climate-get-station.tool.test.ts
 │   │   ├── noaa-climate-list-data-categories-extended.tool.test.ts

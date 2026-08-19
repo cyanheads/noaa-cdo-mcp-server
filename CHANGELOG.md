@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.0](changelog/0.6.x/0.6.0.md) — 2026-08-18
+
+Adds noaa_climate_get_billion_dollar_disasters over NCEI's Billion-Dollar Weather and Climate Disasters, with every cost normalized to whole US dollars; CDO's own rejection message is now recovered, and a rejected NOAA_CDO_TOKEN routes to a dedicated upstream_auth_failed reason across all eight CDO tools.
+
 ## [0.5.0](changelog/0.5.x/0.5.0.md) — 2026-08-18
 
 Adds noaa_climate_search_storm_events over the NCEI Storm Events Database (tornadoes, hail, floods, hurricanes) — a separate, tokenless bulk-CSV corpus from the existing CDO tools, with damage figures that distinguish unreported from a confirmed zero.

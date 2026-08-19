@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/noaa-climate-mcp-server",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "mcpName": "io.github.cyanheads/noaa-climate-mcp-server",
   "description": "Search NOAA climate stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.",
   "type": "module",
@@ -25,7 +25,8 @@
     "bundle": "bun run build && npx -y @anthropic-ai/mcpb pack . dist/noaa-climate-mcp-server.mcpb && bun run scripts/clean-mcpb.ts dist/noaa-climate-mcp-server.mcpb",
     "changelog:build": "bun run scripts/build-changelog.ts",
     "changelog:check": "bun run scripts/build-changelog.ts --check",
-    "test": "bunx vitest run",
+    "test": "bunx vitest run --project unit",
+    "test:live": "bunx vitest run --project live",
     "release:github": "bun run scripts/release-github.ts",
     "publish-mcp": "mcp-publisher login github -token \"$(security find-generic-password -a \"$USER\" -s mcp-publisher-github-pat -w)\" && mcp-publisher publish",
     "start:stdio": "MCP_TRANSPORT_TYPE=stdio bun ./dist/index.js",
