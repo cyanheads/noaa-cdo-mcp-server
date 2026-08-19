@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.1](changelog/0.6.x/0.6.1.md) — 2026-08-18
+
+service_unavailable now reaches all eight CDO-backed tools where it was previously declared but unreachable, and a new rate_limited reason routes a throttled token separately.
+
 ## [0.6.0](changelog/0.6.x/0.6.0.md) — 2026-08-18
 
 Adds noaa_climate_get_billion_dollar_disasters over NCEI's Billion-Dollar Weather and Climate Disasters, with every cost normalized to whole US dollars; CDO's own rejection message is now recovered, and a rejected NOAA_CDO_TOKEN routes to a dedicated upstream_auth_failed reason across all eight CDO tools.

@@ -1,6 +1,6 @@
 # noaa-climate-mcp-server - Directory Structure
 
-Generated on: 2026-08-19 00:03:17
+Generated on: 2026-08-19 00:30:11
 
 ```text
 noaa-climate-mcp-server/
@@ -148,6 +148,7 @@ noaa-climate-mcp-server/
 │   │       └── definitions/
 │   │           ├── shared/
 │   │           │   ├── upstream-auth.ts
+│   │           │   ├── upstream-availability.ts
 │   │           │   └── validation.ts
 │   │           ├── noaa-climate-fetch-data.tool.ts
 │   │           ├── noaa-climate-find-locations.tool.ts
