@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { noaaClimateFetchData } from '@/mcp-server/tools/definitions/noaa-climate-fetch-data.tool.js';
 import { noaaClimateFindLocations } from '@/mcp-server/tools/definitions/noaa-climate-find-locations.tool.js';
 import { noaaClimateFindStations } from '@/mcp-server/tools/definitions/noaa-climate-find-stations.tool.js';
+import { noaaClimateGetBillionDollarDisasters } from '@/mcp-server/tools/definitions/noaa-climate-get-billion-dollar-disasters.tool.js';
 import { noaaClimateGetStation } from '@/mcp-server/tools/definitions/noaa-climate-get-station.tool.js';
 import { noaaClimateListDataCategories } from '@/mcp-server/tools/definitions/noaa-climate-list-data-categories.tool.js';
 import { noaaClimateListDataTypes } from '@/mcp-server/tools/definitions/noaa-climate-list-data-types.tool.js';
@@ -26,6 +27,7 @@ const tools = [
   noaaClimateGetStation,
   noaaClimateFetchData,
   noaaClimateSearchStormEvents,
+  noaaClimateGetBillionDollarDisasters,
 ];
 
 describe('tool naming', () => {
@@ -41,6 +43,7 @@ describe('tool naming', () => {
         'noaa_climate_list_datasets',
         'noaa_climate_list_location_categories',
         'noaa_climate_search_storm_events',
+        'noaa_climate_get_billion_dollar_disasters',
       ].sort(),
     );
   });
@@ -48,6 +51,14 @@ describe('tool naming', () => {
   it('every tool carries the noaa_climate_ prefix', () => {
     for (const t of tools) {
       expect(t.name).toMatch(/^noaa_climate_/);
+    }
+  });
+
+  it('separates the namespace from the verb with an underscore', () => {
+    // `noaaclimate_get_billion_dollar_disasters` — the prefix run together —
+    // is a plausible typo that the prefix check above would not catch.
+    for (const t of tools) {
+      expect(t.name).not.toMatch(/^noaaclimate/);
     }
   });
 });
