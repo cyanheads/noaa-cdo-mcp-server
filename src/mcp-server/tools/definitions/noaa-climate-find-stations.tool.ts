@@ -6,6 +6,7 @@
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 import { isUpstreamTokenRejection } from '@/mcp-server/tools/definitions/shared/upstream-auth.js';
+import { upstreamOutageReason } from '@/mcp-server/tools/definitions/shared/upstream-availability.js';
 import {
   identifierArrayFilter,
   identifierFilter,
@@ -150,6 +151,14 @@ export const noaaClimateFindStations = tool('noaa_climate_find_stations', {
       recovery: 'Wait a moment and retry; NOAA CDO may be temporarily unavailable.',
     },
     {
+      reason: 'rate_limited',
+      code: JsonRpcErrorCode.RateLimited,
+      when: 'NOAA CDO throttled the request — the configured token went over its rate limit.',
+      retryable: true,
+      recovery:
+        'Space the calls out — NOAA CDO allows 5 requests per second per token, so several climate tools running concurrently is the usual cause. Pause a second, drop the concurrency, then retry.',
+    },
+    {
       reason: 'upstream_auth_failed',
       code: JsonRpcErrorCode.ConfigurationError,
       when: 'NOAA CDO rejected the API token this server is configured with.',
@@ -190,15 +199,22 @@ export const noaaClimateFindStations = tool('noaa_climate_find_stations', {
     try {
       response = await service.findStations(params, ctx);
     } catch (err) {
-      if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
-        if (isUpstreamTokenRejection(err)) {
-          throw ctx.fail(
-            'upstream_auth_failed',
-            err.message,
-            ctx.recoveryFor('upstream_auth_failed'),
-          );
+      if (err instanceof McpError) {
+        // Checked ahead of the InvalidParams branch: an unreachable or
+        // throttled upstream is not a parameter fault, and its codes never
+        // enter that branch anyway.
+        const outage = upstreamOutageReason(err);
+        if (outage) throw ctx.fail(outage, err.message, ctx.recoveryFor(outage));
+        if (err.code === JsonRpcErrorCode.InvalidParams) {
+          if (isUpstreamTokenRejection(err)) {
+            throw ctx.fail(
+              'upstream_auth_failed',
+              err.message,
+              ctx.recoveryFor('upstream_auth_failed'),
+            );
+          }
+          throw ctx.fail('validation_error', err.message, ctx.recoveryFor('validation_error'));
         }
-        throw ctx.fail('validation_error', err.message, ctx.recoveryFor('validation_error'));
       }
       throw err;
     }

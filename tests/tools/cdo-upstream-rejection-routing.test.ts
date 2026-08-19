@@ -13,7 +13,15 @@
  * `token` header, so a deployment configured with a bad one fails identically
  * on all eight — which is why the routing is asserted across the whole set from
  * one table rather than per tool, and why every tool that can emit
- * `upstream_auth_failed` must declare it under the same code.
+ * `upstream_auth_failed` must declare it under the same code. The same holds
+ * for a throttled token and an unreachable service: one bucket, one upstream,
+ * eight tools.
+ *
+ * Reachability is the property under test, and the linter cannot check it — it
+ * validates that a declared union is well-formed, never that the code can
+ * produce each entry. So every declared reason is driven from an upstream error
+ * shaped the way CdoService builds it, and each tool's union is pinned in
+ * `CDO_TOOLS.reasons` so an entry added without a path to it fails here.
  *
  * @module tests/tools/cdo-upstream-rejection-routing.test
  */
@@ -65,6 +73,56 @@ function cdoUnexplainedFailure(status: number, path: string): McpError {
         hint: 'NOAA CDO gave no explanation for this status. If the request carried long stationId, locationId, or datatypeId arrays, send fewer values.',
       },
     },
+  );
+}
+
+/**
+ * A status-mapped transient failure, shaped as CdoService rethrows it.
+ *
+ * `explainCdoFailure` rewrites the message off the status and carries the
+ * status-mapped code and every `data` field through untouched, so this is what
+ * a tool's catch receives for a 429 or a 503 whose body explained nothing.
+ */
+function cdoStatusFailure(
+  code: JsonRpcErrorCode,
+  status: number,
+  path: string,
+  extra: Record<string, unknown> = {},
+): McpError {
+  return new McpError(code, `NOAA CDO returned HTTP ${status} for /${path}.`, {
+    status,
+    path,
+    recovery: { hint: 'NOAA CDO gave no explanation for this status.' },
+    ...extra,
+  });
+}
+
+/**
+ * The second way a ServiceUnavailable code arrives: `CdoService.get()` raising
+ * it itself after a 2xx whose body was NOAA's HTML interstitial.
+ *
+ * It never passes through the status mapping, so `data` carries no `status` at
+ * all — routing keyed on the status would catch the mapped path and miss this
+ * one, which is why both are asserted rather than one standing in for both.
+ */
+function cdoHtmlInterstitial(path: string): McpError {
+  return new McpError(
+    JsonRpcErrorCode.ServiceUnavailable,
+    'NOAA CDO returned HTML instead of JSON — likely rate-limited.',
+    { path },
+  );
+}
+
+/**
+ * A network-level failure, shaped as `fetchWithTimeout` wraps it — no status
+ * and no body, since the exchange never produced a response to read either
+ * from.
+ */
+function cdoNetworkFailure(path: string): McpError {
+  return new McpError(
+    JsonRpcErrorCode.ServiceUnavailable,
+    `Network error during fetch GET https://www.ncei.noaa.gov/cdo-web/api/v2/${path}: fetch failed`,
+    { originalErrorName: 'TypeError', errorSource: 'FetchNetworkErrorWrapper' },
   );
 }
 
@@ -171,6 +229,7 @@ describe('noaaClimateFetchData — declared reasons', () => {
   it('declares exactly the reasons this tool can emit', () => {
     expect(noaaClimateFetchData.errors?.map((entry) => entry.reason).sort()).toEqual([
       'date_range_exceeded',
+      'rate_limited',
       'service_unavailable',
       'upstream_auth_failed',
       'validation_error',
@@ -253,6 +312,7 @@ const CDO_TOOLS = [
     errors: noaaClimateFetchData.errors,
     reasons: [
       'date_range_exceeded',
+      'rate_limited',
       'service_unavailable',
       'upstream_auth_failed',
       'validation_error',
@@ -271,6 +331,7 @@ const CDO_TOOLS = [
     reasons: [
       'name_filter_category_too_large',
       'name_filter_requires_category',
+      'rate_limited',
       'service_unavailable',
       'upstream_auth_failed',
       'validation_error',
@@ -286,7 +347,7 @@ const CDO_TOOLS = [
     label: 'noaa_climate_find_stations',
     method: 'findStations',
     errors: noaaClimateFindStations.errors,
-    reasons: ['service_unavailable', 'upstream_auth_failed', 'validation_error'],
+    reasons: ['rate_limited', 'service_unavailable', 'upstream_auth_failed', 'validation_error'],
     routesInputFaults: true,
     call: () =>
       noaaClimateFindStations.handler(
@@ -298,7 +359,7 @@ const CDO_TOOLS = [
     label: 'noaa_climate_get_station',
     method: 'getStation',
     errors: noaaClimateGetStation.errors,
-    reasons: ['not_found', 'service_unavailable', 'upstream_auth_failed'],
+    reasons: ['not_found', 'rate_limited', 'service_unavailable', 'upstream_auth_failed'],
     // Declares no validation_error: CDO answers an unknown station ID with
     // HTTP 200 and a bare `{}`, so this route has no input-fault contract to
     // route a 400 onto. Everything but the token rejection passes through.
@@ -313,7 +374,7 @@ const CDO_TOOLS = [
     label: 'noaa_climate_list_data_categories',
     method: 'listDataCategories',
     errors: noaaClimateListDataCategories.errors,
-    reasons: ['service_unavailable', 'upstream_auth_failed', 'validation_error'],
+    reasons: ['rate_limited', 'service_unavailable', 'upstream_auth_failed', 'validation_error'],
     routesInputFaults: true,
     call: () =>
       noaaClimateListDataCategories.handler(
@@ -325,7 +386,7 @@ const CDO_TOOLS = [
     label: 'noaa_climate_list_data_types',
     method: 'listDataTypes',
     errors: noaaClimateListDataTypes.errors,
-    reasons: ['service_unavailable', 'upstream_auth_failed', 'validation_error'],
+    reasons: ['rate_limited', 'service_unavailable', 'upstream_auth_failed', 'validation_error'],
     routesInputFaults: true,
     call: () =>
       noaaClimateListDataTypes.handler(
@@ -337,7 +398,7 @@ const CDO_TOOLS = [
     label: 'noaa_climate_list_datasets',
     method: 'listDatasets',
     errors: noaaClimateListDatasets.errors,
-    reasons: ['service_unavailable', 'upstream_auth_failed', 'validation_error'],
+    reasons: ['rate_limited', 'service_unavailable', 'upstream_auth_failed', 'validation_error'],
     routesInputFaults: true,
     call: () =>
       noaaClimateListDatasets.handler(
@@ -349,7 +410,7 @@ const CDO_TOOLS = [
     label: 'noaa_climate_list_location_categories',
     method: 'listLocationCategories',
     errors: noaaClimateListLocationCategories.errors,
-    reasons: ['service_unavailable', 'upstream_auth_failed', 'validation_error'],
+    reasons: ['rate_limited', 'service_unavailable', 'upstream_auth_failed', 'validation_error'],
     routesInputFaults: true,
     call: () =>
       noaaClimateListLocationCategories.handler(
@@ -418,6 +479,107 @@ describe('noaaClimateGetStation — a rejection that is not the token', () => {
     const error = await captureFailure(() => target?.call());
 
     expect(error.code).toBe(JsonRpcErrorCode.InvalidParams);
+    expect(error.data?.reason).toBeUndefined();
+  });
+});
+
+describe.each(CDO_TOOLS)('$label — an unavailable upstream', ({ method, call }) => {
+  it('routes a status-mapped 503 to service_unavailable', async () => {
+    mockCdoRejection(method, cdoStatusFailure(JsonRpcErrorCode.ServiceUnavailable, 503, 'any'));
+    const error = await captureFailure(call);
+
+    expect(error.data?.reason).toBe('service_unavailable');
+    expect(error.code).toBe(JsonRpcErrorCode.ServiceUnavailable);
+  });
+
+  it('routes the HTML interstitial, which never carries a status, the same way', async () => {
+    mockCdoRejection(method, cdoHtmlInterstitial('any'));
+
+    expect((await captureFailure(call)).data?.reason).toBe('service_unavailable');
+  });
+
+  it('routes a network-level failure the same way', async () => {
+    mockCdoRejection(method, cdoNetworkFailure('any'));
+
+    expect((await captureFailure(call)).data?.reason).toBe('service_unavailable');
+  });
+
+  it('hands back a wait-and-retry move and marks the failure retryable', async () => {
+    mockCdoRejection(method, cdoStatusFailure(JsonRpcErrorCode.ServiceUnavailable, 502, 'any'));
+    const error = await captureFailure(call);
+    const hint = (error.data?.recovery as { hint?: string } | undefined)?.hint ?? '';
+
+    expect(hint).toMatch(/retry/i);
+    expect(error.data?.retryable).toBe(true);
+  });
+});
+
+describe.each(CDO_TOOLS)('$label — a throttled token', ({ method, call }) => {
+  beforeEach(() => {
+    mockCdoRejection(
+      method,
+      cdoStatusFailure(JsonRpcErrorCode.RateLimited, 429, 'any', { retryAfter: '1' }),
+    );
+  });
+
+  it('routes to rate_limited rather than service_unavailable', async () => {
+    // Not the same next move: an unavailable upstream is retried unchanged,
+    // a throttled one has to be paced down first. Folding the two together
+    // would also emit a reason declared under ServiceUnavailable on an error
+    // the status mapped to RateLimited.
+    expect((await captureFailure(call)).data?.reason).toBe('rate_limited');
+  });
+
+  it('keeps the RateLimited code the status mapped', async () => {
+    expect((await captureFailure(call)).code).toBe(JsonRpcErrorCode.RateLimited);
+  });
+
+  it('tells the caller to pace requests rather than merely wait', async () => {
+    const error = await captureFailure(call);
+    const hint = (error.data?.recovery as { hint?: string } | undefined)?.hint ?? '';
+
+    expect(hint).toMatch(/per second/i);
+    expect(hint).toMatch(/space|pace|concurrent|at once/i);
+    expect(error.data?.retryable).toBe(true);
+  });
+});
+
+describe.each(CDO_TOOLS)('$label — transient upstream contract', ({ errors }) => {
+  // One reason, one code across all eight, so a client branches on the single
+  // value rather than special-casing per tool.
+  it('declares service_unavailable as a retryable ServiceUnavailable', () => {
+    const entry = errors?.find((candidate) => candidate.reason === 'service_unavailable');
+
+    expect(entry?.code).toBe(JsonRpcErrorCode.ServiceUnavailable);
+    expect(entry?.retryable).toBe(true);
+  });
+
+  it('declares rate_limited as a retryable RateLimited', () => {
+    const entry = errors?.find((candidate) => candidate.reason === 'rate_limited');
+
+    expect(entry?.code).toBe(JsonRpcErrorCode.RateLimited);
+    expect(entry?.retryable).toBe(true);
+  });
+});
+
+describe.each(CDO_TOOLS)('$label — a code left unrouted on purpose', ({ method, call }) => {
+  // Whatever CDO means by these, the caller's move is the one
+  // service_unavailable already carries: retry once, then stop. A second reason
+  // saying that is contract surface nobody can branch on, so they keep their
+  // status-mapped codes and stay off the declared union.
+  it('passes a 500 through as InternalError with no reason', async () => {
+    mockCdoRejection(method, cdoStatusFailure(JsonRpcErrorCode.InternalError, 500, 'any'));
+    const error = await captureFailure(call);
+
+    expect(error.code).toBe(JsonRpcErrorCode.InternalError);
+    expect(error.data?.reason).toBeUndefined();
+  });
+
+  it('passes a 504 through as Timeout with no reason', async () => {
+    mockCdoRejection(method, cdoStatusFailure(JsonRpcErrorCode.Timeout, 504, 'any'));
+    const error = await captureFailure(call);
+
+    expect(error.code).toBe(JsonRpcErrorCode.Timeout);
     expect(error.data?.reason).toBeUndefined();
   });
 });

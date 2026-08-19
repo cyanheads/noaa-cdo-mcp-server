@@ -117,11 +117,14 @@ describe('noaaClimateListDataCategories — error propagation', () => {
     });
   });
 
-  it('passes non-InvalidParams McpErrors through unchanged', async () => {
+  // Uses a 500: the transient codes are routed onto declared reasons (see
+  // cdo-upstream-rejection-routing), so an unrouted code is what still proves
+  // the catch does not swallow whatever it was not built to answer.
+  it('passes an unrouted McpError through unchanged', async () => {
     const serviceError = new McpError(
-      JsonRpcErrorCode.ServiceUnavailable,
-      'NOAA CDO returned HTTP 503.',
-      { status: 503 },
+      JsonRpcErrorCode.InternalError,
+      'NOAA CDO returned HTTP 500.',
+      { status: 500 },
     );
     vi.mocked(getCdoService).mockReturnValue({
       listDataCategories: vi.fn().mockRejectedValue(serviceError),
