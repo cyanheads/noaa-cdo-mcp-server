@@ -5,6 +5,7 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+import { isUpstreamTokenRejection } from '@/mcp-server/tools/definitions/shared/upstream-auth.js';
 import {
   identifierArrayFilter,
   identifierFilter,
@@ -149,6 +150,13 @@ export const noaaClimateFindStations = tool('noaa_climate_find_stations', {
       recovery: 'Wait a moment and retry; NOAA CDO may be temporarily unavailable.',
     },
     {
+      reason: 'upstream_auth_failed',
+      code: JsonRpcErrorCode.ConfigurationError,
+      when: 'NOAA CDO rejected the API token this server is configured with.',
+      recovery:
+        'The inputs are not at fault — this deployment’s NOAA_CDO_TOKEN is missing or no longer valid. Set it to a working token (free at https://www.ncdc.noaa.gov/cdo-web/token) and restart the server; every retry fails identically until then.',
+    },
+    {
       reason: 'validation_error',
       code: JsonRpcErrorCode.ValidationError,
       when: 'A filter parameter is not recognized by the NOAA CDO API (e.g., unknown locationId or datacategoryId).',
@@ -183,6 +191,13 @@ export const noaaClimateFindStations = tool('noaa_climate_find_stations', {
       response = await service.findStations(params, ctx);
     } catch (err) {
       if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
+        if (isUpstreamTokenRejection(err)) {
+          throw ctx.fail(
+            'upstream_auth_failed',
+            err.message,
+            ctx.recoveryFor('upstream_auth_failed'),
+          );
+        }
         throw ctx.fail('validation_error', err.message, ctx.recoveryFor('validation_error'));
       }
       throw err;

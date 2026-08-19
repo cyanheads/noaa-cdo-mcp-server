@@ -4,7 +4,8 @@
  */
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
-import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+import { isUpstreamTokenRejection } from '@/mcp-server/tools/definitions/shared/upstream-auth.js';
 import { identifierFilter } from '@/mcp-server/tools/definitions/shared/validation.js';
 import { getCdoService } from '@/services/cdo/cdo-service.js';
 
@@ -70,13 +71,41 @@ export const noaaClimateGetStation = tool('noaa_climate_get_station', {
       retryable: true,
       recovery: 'Wait a moment and retry; NOAA CDO may be temporarily unavailable.',
     },
+    {
+      reason: 'upstream_auth_failed',
+      code: JsonRpcErrorCode.ConfigurationError,
+      when: 'NOAA CDO rejected the API token this server is configured with.',
+      recovery:
+        'The inputs are not at fault — this deployment’s NOAA_CDO_TOKEN is missing or no longer valid. Set it to a working token (free at https://www.ncdc.noaa.gov/cdo-web/token) and restart the server; every retry fails identically until then.',
+    },
   ],
 
   async handler(input, ctx) {
     ctx.log.info('Getting station', { stationId: input.stationId });
 
     const service = getCdoService();
-    const st = await service.getStation(input.stationId, ctx);
+    let st: Awaited<ReturnType<typeof service.getStation>>;
+    try {
+      st = await service.getStation(input.stationId, ctx);
+    } catch (err) {
+      // The rejected token is the only HTTP 400 this route raises that the
+      // caller can act on, and the move is a deployment fix rather than a
+      // different stationId. Nothing else is rerouted: CDO answers an unknown
+      // ID with HTTP 200 and a bare `{}`, so there is no input-fault reason
+      // here to land a status on.
+      if (
+        err instanceof McpError &&
+        err.code === JsonRpcErrorCode.InvalidParams &&
+        isUpstreamTokenRejection(err)
+      ) {
+        throw ctx.fail(
+          'upstream_auth_failed',
+          err.message,
+          ctx.recoveryFor('upstream_auth_failed'),
+        );
+      }
+      throw err;
+    }
 
     if (!st.id)
       throw ctx.fail(

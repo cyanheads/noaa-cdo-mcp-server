@@ -5,6 +5,7 @@
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
 import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+import { isUpstreamTokenRejection } from '@/mcp-server/tools/definitions/shared/upstream-auth.js';
 import {
   identifierArrayFilter,
   identifierFilter,
@@ -39,8 +40,15 @@ const ONE_YEAR_DATASETS = new Set([...DAILY_DATASETS, ...RADAR_DATASETS]);
 /** Datasets limited to a 10-year date range per request. */
 const MONTHLY_DATASETS = new Set(['GSOM', 'GSOY', 'NORMAL_MLY', 'NORMAL_ANN']);
 
-/** All stable CDO datasets. Used for pre-request validation so unknown IDs surface as validation_error, not a raw HTTP 500. */
-const KNOWN_DATASETS = new Set([...ONE_YEAR_DATASETS, ...MONTHLY_DATASETS]);
+/**
+ * All stable CDO datasets. Used for pre-request validation so unknown IDs
+ * surface as validation_error, not a raw HTTP 500.
+ *
+ * Exported so the opt-in live lane can assert every gated ID still resolves
+ * upstream — a dataset CDO retires would otherwise turn this gate into a
+ * permanent rejection of a value the tool advertises.
+ */
+export const KNOWN_DATASETS = new Set([...ONE_YEAR_DATASETS, ...MONTHLY_DATASETS]);
 
 /** Years of span CDO allows for a datasetId, or undefined when it documents no cap. */
 function maxSpanYearsForDataset(datasetId: string): number | undefined {
@@ -223,6 +231,13 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
         'Use the maxEndDate named in the error, or split into consecutive requests. For NORMAL_* datasets use startDate=2010-01-01 and endDate=2010-12-31.',
     },
     {
+      reason: 'upstream_auth_failed',
+      code: JsonRpcErrorCode.ConfigurationError,
+      when: 'NOAA CDO rejected the API token this server is configured with.',
+      recovery:
+        'The inputs are not at fault — this deployment’s NOAA_CDO_TOKEN is missing or no longer valid. Set it to a working token (free at https://www.ncdc.noaa.gov/cdo-web/token) and restart the server; every retry fails identically until then.',
+    },
+    {
       reason: 'validation_error',
       code: JsonRpcErrorCode.ValidationError,
       when: 'Bad dataset ID, date format, or unknown station/location/datatype ID.',
@@ -316,6 +331,13 @@ export const noaaClimateFetchData = tool('noaa_climate_fetch_data', {
       response = await service.fetchData(params, ctx);
     } catch (err) {
       if (err instanceof McpError && err.code === JsonRpcErrorCode.InvalidParams) {
+        if (isUpstreamTokenRejection(err)) {
+          throw ctx.fail(
+            'upstream_auth_failed',
+            err.message,
+            ctx.recoveryFor('upstream_auth_failed'),
+          );
+        }
         throw ctx.fail('validation_error', err.message, ctx.recoveryFor('validation_error'));
       }
       throw err;
