@@ -1,13 +1,13 @@
 <div align="center">
   <h1>@cyanheads/noaa-climate-mcp-server</h1>
   <p><b>Search NOAA climate stations and datasets, fetch historical weather observations via MCP. STDIO or Streamable HTTP.</b>
-  <div>9 Tools • 2 Resources</div>
+  <div>10 Tools • 2 Resources</div>
   </p>
 </div>
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.5.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/noaa-climate-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.30.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/noaa-climate-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/noaa-climate-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^7.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.0-blueviolet.svg?style=flat-square)](https://bun.sh/)
+[![Version](https://img.shields.io/badge/Version-0.6.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Docker](https://img.shields.io/badge/Docker-ghcr.io-2496ED?style=flat-square&logo=docker&logoColor=white)](https://github.com/users/cyanheads/packages/container/package/noaa-climate-mcp-server) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.30.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![npm](https://img.shields.io/npm/v/@cyanheads/noaa-climate-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/@cyanheads/noaa-climate-mcp-server) [![TypeScript](https://img.shields.io/badge/TypeScript-^7.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.0-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
@@ -29,7 +29,7 @@
 
 ## Tools
 
-9 tools — 8 over the NOAA Climate Data Online (CDO) API v2, plus severe-weather event search over the NCEI Storm Events Database:
+10 tools — 8 over the NOAA Climate Data Online (CDO) API v2, plus two over separate NCEI bulk-CSV corpora: severe-weather event search over the Storm Events Database, and disaster costs over Billion-Dollar Weather and Climate Disasters:
 
 | Tool | Description |
 |:---|:---|
@@ -42,6 +42,7 @@
 | `noaa_climate_get_station` | Fetch full metadata for a single station by ID |
 | `noaa_climate_fetch_data` | Fetch historical observation records for a dataset and date range |
 | `noaa_climate_search_storm_events` | Search the NCEI Storm Events Database for one year — tornadoes, hail, floods, hurricanes, with damage, casualties, and narratives |
+| `noaa_climate_get_billion_dollar_disasters` | Query NOAA's Billion-Dollar Weather and Climate Disasters — CPI-adjusted costs and deaths per disaster, or per-year totals by disaster class |
 
 ### `noaa_climate_list_datasets`
 
@@ -146,6 +147,21 @@ Search the NCEI Storm Events Database — a different NOAA corpus from the CDO t
 
 ---
 
+### `noaa_climate_get_billion_dollar_disasters`
+
+Query NOAA/NCEI's [Billion-Dollar Weather and Climate Disasters](https://www.ncei.noaa.gov/access/billions/) — the curated record of US weather and climate disasters whose damage passed $1 billion.
+
+- Two shapes from one tool: individual disasters by default (name, class, span, CPI-adjusted and unadjusted cost, deaths), or `summary=true` for per-year counts and costs by disaster class plus an `All Disasters` total
+- Seven disaster classes, written exactly as NCEI writes them: `Drought`, `Flooding`, `Freeze`, `Severe Storm`, `Tropical Cyclone`, `Wildfire`, `Winter Storm`. `disasterType` rejects any other spelling rather than coercing it
+- **No token required** — this corpus is published as static CSV, not through CDO
+- **Every cost is in whole US dollars.** NCEI does not use one unit across these exports: the per-event file states millions, the national per-year file states billions, and a per-state per-year file states millions again. The server reads the unit each file declares in its own preamble, converts once, and reports what it read back as `declaredCostUnit`. Conflating the two would misreport by a factor of 1,000 while still looking plausible — Hurricane Helene is `78721` in a millions file, which is $78.7 billion, not $78,721 billion
+- **Coverage is whatever NCEI has finished assessing**, not the current calendar year — `coveredYears` reports the span actually present (1980–2024 as of writing). A query for this year returns nothing rather than an error
+- `startYear`/`endYear` match by overlap, so a disaster running across a New Year is returned from either side of it
+- **A `state` scope reads NCEI's per-state exports and behaves differently in two ways.** Its per-event rows are national disasters that reached that state and carry the **national** cost, never a state share — summing states double-counts, which the response says for itself with `costBasis: "national"`. Its per-year rows carry a binned cost range (`costRangeInUsd`) instead of the point estimate and 75/90/95% confidence bands the national export publishes
+- Not every two-letter code has an export: the 50 states, DC, PR, VI, and GU do; AS and MP do not, and a code without one fails with `unknown_state` rather than silently falling back to national totals
+
+---
+
 ## Resources
 
 | Type | Name | Description |
@@ -169,6 +185,7 @@ NOAA CDO-specific:
 - Full CDO API v2 coverage — datasets, data categories, data types, locations, stations, and observations
 - Client-side date range validation with per-dataset limits enforced before hitting the API
 - Unit normalization via the CDO `units` parameter — avoids raw tenths-of-unit integer confusion
+- CDO's own rejection message is recovered and surfaced: an over-long date range, a malformed date, a missing parameter, and an over-large `limit` each report the reason CDO gave, instead of an identical bare status line
 - Retry with exponential backoff for transient API failures
 
 Agent-friendly output:
@@ -303,15 +320,19 @@ All configuration is validated at startup via Zod schemas in `src/config/server-
   ```sh
   bun run devcheck  # Lints, formats, type-checks, and more
   bun run test      # Runs the test suite
+  bun run test:live # Opt-in: resolves every documented example identifier against the live CDO API
   ```
 
 ## Project structure
 
 | Directory | Purpose |
 |:---|:---|
-| `src/mcp-server/tools` | Tool definitions (`*.tool.ts`). Seven tools across datasets, locations, stations, and observations. |
+| `src/mcp-server/tools` | Tool definitions (`*.tool.ts`). Ten tools across datasets, locations, stations, observations, storm events, and disaster costs. |
 | `src/mcp-server/resources` | Resource definitions. Datasets catalog and station metadata resources. |
-| `src/services/cdo` | CDO HTTP client with retry, backoff, and camelCase→lowercase parameter translation. |
+| `src/services/cdo` | CDO HTTP client with retry, backoff, camelCase→lowercase parameter translation, and recovery of CDO's own rejection message. |
+| `src/services/csv` | Incremental RFC 4180 CSV reader shared by the two NCEI bulk-CSV corpora. |
+| `src/services/storm-events` | NCEI Storm Events bulk-CSV client — filename discovery, streamed decompression, damage parsing. |
+| `src/services/billion-dollar-disasters` | NCEI Billion-Dollar Disasters client — declared-unit resolution and conversion to whole US dollars. |
 | `src/config` | Server-specific environment variable parsing and validation with Zod. |
 | `tests/` | Unit and integration tests, mirroring the `src/` structure. |
 

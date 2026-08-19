@@ -15,6 +15,7 @@
 | `noaa_climate_get_station` | Fetch full metadata for a single station by ID, including name, coordinates, elevation, and data coverage dates. | `stationId` | `readOnlyHint: true`, `openWorldHint: false` |
 | `noaa_climate_fetch_data` | Fetch historical observation data for a dataset, date range, and one or more stations or locations. Returns time-series values for the requested data types. | `datasetId`, `startDate`, `endDate`, `stationId[]?`, `locationId[]?`, `datatypeId[]?`, `units?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: true` |
 | `noaa_climate_search_storm_events` | Search the NCEI Storm Events Database for one calendar year — severe-weather events with magnitude, casualties, damage, and narratives. A separate corpus from CDO: bulk gzip CSV, no token. | `year`, `state?`, `eventType?`, `month?`, `minDamageInUsd?`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: true` |
+| `noaa_climate_get_billion_dollar_disasters` | Query NCEI Billion-Dollar Weather and Climate Disasters — individual disasters with CPI-adjusted cost and deaths, or per-year totals by disaster class. A third corpus: small static CSVs, no token, every cost normalized to whole US dollars. | `startYear?`, `endYear?`, `disasterType?`, `state?`, `minCostInUsd?`, `summary`, `limit`, `offset` | `readOnlyHint: true`, `openWorldHint: true` |
 
 ### Resources
 
@@ -54,6 +55,8 @@ The API wraps `https://www.ncei.noaa.gov/cdo-web/api/v2/`.
 |:--------|:------|:--------|
 | `CdoService` | NOAA CDO API v2 (`https://www.ncei.noaa.gov/cdo-web/api/v2/`) | All tools, both resources |
 | `StormEventsService` | NCEI Storm Events bulk CSV export (`https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/`) | `noaa_climate_search_storm_events` |
+| `BillionDollarDisastersService` | NCEI Billion-Dollar Weather and Climate Disasters CSV exports (`https://www.ncei.noaa.gov/access/billions/`) | `noaa_climate_get_billion_dollar_disasters` |
+| `CsvStreamReader` (`src/services/csv/`) | Not an upstream — the incremental RFC 4180 reader both bulk-CSV services parse with | `StormEventsService`, `BillionDollarDisastersService` |
 
 **Parameter name translation.** MCP input schemas use camelCase (`datasetId`, `locationId`, `stationId`, `datatypeId`, `datacategoryId`). The CDO API requires all lowercase (`datasetid`, `locationid`, `stationid`, `datatypeid`, `datacategoryid`). `CdoService` is responsible for this translation — do not rely on the caller to pass lowercase keys.
 
@@ -64,6 +67,17 @@ The API wraps `https://www.ncei.noaa.gov/cdo-web/api/v2/`.
 - **Damage values are magnitude-suffixed strings.** `H`/`K`/`M`/`B` suffixes, bare numbers (not always `0`), and abbreviated fractions (`.5M`) all occur; an empty cell means "not reported" and is preserved as an absent value rather than `0`, and a cell that does not parse keeps its raw text with no amount. See `src/services/storm-events/damage.ts`.
 
 **Caching bounds.** The directory listing and up to two years of compressed bytes are held for six hours, then re-fetched — NCEI republishes a year under a new `_c` suffix at any time. Two resident years stay under 30 MB: a recent bundle is about 12 MB and the largest, 2011, is 15 MB. That is the retained set, not the memory envelope — 2024 decompresses to 66.6 MB in 4,272 16 KB chunks, and a cold full-year scan of it measured 129 MB RSS at baseline against a 269 MB peak, climbing further across repeated scans. The chunk strings are transient garbage the collector reclaims, not retention, but sizing the process against the ~30 MB cache figure would be wrong.
+
+**Billion-Dollar Disasters is a third upstream, and its defining hazard is units.** `BillionDollarDisastersService` reads four small static CSVs — `events-US.csv` (403 rows), `time-series-US.csv` (45 rows), and their `events-{STATE}.csv` / `time-series-{STATE}.csv` variants. No token, no gzip, no filename discovery: they are plain `text/csv` at fixed names, small enough to buffer whole, so the streaming machinery Storm Events needs would be overhead here. Four properties shape the service:
+
+- **The exports do not share a cost unit, and each states its own.** `events-*.csv` declares "Cost values are in millions of dollars"; `time-series-US.csv` declares billions; `time-series-{STATE}.csv` declares millions again. A figure read under the wrong one is wrong by three orders of magnitude and still entirely plausible — Hurricane Helene's `78721` is $78.7B, not $78,721B. The service therefore parses the unit out of each file's own preamble and scales at a single site, `toUsd()`, publishing whole US dollars and echoing the unit it read as `declaredCostUnit`. An unrecognized or absent unit is `malformed_export`, never a default.
+- **Every file opens with lines that are neither data nor header.** `events-*.csv` leads with a title line and the unit note; `time-series-*.csv` leads with two `#` comments and a blank line. Treating row 1 as the header silently mis-keys every column, so the header is located by name (`Name` or `State`) and everything above it is read only for the unit.
+- **The per-state per-year export has a different shape, not just a different scope.** It publishes `"<Type> Cost Range"` — a binned range like `2000-5000` — where the national file publishes `"<Type> Cost"` plus six 75/90/95% confidence-bound columns. Which shape a file carries is read off its header rather than inferred from the scope, so one parser handles both.
+- **Per-state per-event rows carry the national cost.** The state exports select national disasters that reached the state; they do not apportion cost. Summing per-state figures double-counts, and the tool description says so.
+
+**Caching bounds.** Up to eight parsed exports are held for six hours, then re-fetched — NCEI adds a year once its assessment settles and revises prior years' CPI adjustments with it. The bound exists so a long-lived process does not accumulate one entry per state and territory; a parsed export is a few hundred rows, so bytes are not the concern.
+
+**Coverage trails the calendar.** The corpus runs from 1980 to the last fully assessed year — 2024 as of writing, not the current year. The service reports the span it actually found in the rows rather than assuming same-year freshness, and a query past the end returns an empty page with a notice, not an error.
 
 ## Config
 
@@ -81,6 +95,7 @@ The API wraps `https://www.ncei.noaa.gov/cdo-web/api/v2/`.
 6. `noaa_climate_fetch_data` — observation data retrieval (most complex; requires all prior pieces)
 7. Resources: `noaa://datasets` (small, stable list), `noaa://stations/{stationId}` (wraps get_station)
 8. `StormEventsService` + `noaa_climate_search_storm_events` — second upstream (NCEI bulk CSV); independent of every step above
+9. `BillionDollarDisastersService` + `noaa_climate_get_billion_dollar_disasters` — third upstream (NCEI Billions CSV); shares only the CSV reader with step 8
 
 Each step is independently testable against the live API.
 
@@ -99,6 +114,19 @@ The NOAA CDO data model has five entity types and one data-fetch endpoint:
 | Location | `/locations` or `/locations/{id}` | `FIPS:37` (state), `CITY:US390029`, `ZIP:28801`, `FIPS:US` (country) | Filtered by `locationcategoryid` |
 | Station | `/stations` or `/stations/{id}` | `GHCND:USC00010008`, `COOP:010008` | Supports bounding box via `extent` param |
 | Data | `/data` | n/a (query-only) | Requires `datasetid`, `startdate`, `enddate`; returns `{date, datatype, station, value, attributes}` |
+
+### Billion-Dollar Disasters Corpus
+
+A separate NCEI corpus with no CDO entity model — four static CSVs under `https://www.ncei.noaa.gov/access/billions/`, addressed by scope rather than by ID. Costs are stated per file and differ; the server converts every one to whole US dollars.
+
+| Export | Rows | Declared cost unit | Cost shape |
+|:-------|:-----|:-------------------|:-----------|
+| `events-US.csv` | 403 (1980–2024) | millions of dollars | Per disaster: CPI-adjusted and unadjusted point costs |
+| `time-series-US.csv` | 45 (one per year) | **billions** of dollars | Per year per class: point cost plus 75/90/95% confidence bounds |
+| `events-{STATE}.csv` | varies | millions of dollars | Per disaster, carrying the **national** cost of a disaster that reached the state |
+| `time-series-{STATE}.csv` | 45 (one per year) | millions of dollars | Per year per class: a binned range (`2000-5000`), no point estimate, no bounds |
+
+`{STATE}` is a two-letter postal code. The 50 states, DC, PR, VI, and GU have exports; AS and MP return 404. The seven `Disaster` values are `Drought`, `Flooding`, `Freeze`, `Severe Storm`, `Tropical Cyclone`, `Wildfire`, `Winter Storm`; the per-year exports carry an eighth column group, `All Disasters`, which is the year's total rather than a class.
 
 ### Key Dataset Reference
 
@@ -172,7 +200,7 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
 - **Description**: List available NOAA CDO datasets with their IDs, names, and temporal coverage. Returns all ~11 datasets by default (no required params). Optionally filter to datasets that contain a specific data type, cover a location or station, or overlap a date range.
 - **Input**: `datatypeId?: string[]`, `locationId?: string`, `stationId?: string`, `startDate?: string` (ISO), `endDate?: string` (ISO), `sortField?: enum('id'|'name'|'mindate'|'maxdate'|'datacoverage')`, `sortOrder?: enum('asc'|'desc')`, `limit: number (default 25, max 1000)`, `offset: number (default 0)`
 - **Output**: `{ results: Array<{ id, name, datacoverage, mindate, maxdate }>, metadata: { resultset: { count, limit, offset } } }`
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'validation_error', code: ValidationError, when: 'Bad date format or unknown ID' }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'upstream_auth_failed', code: ConfigurationError, when: 'CDO rejected the API token this server is configured with' }`, `{ reason: 'validation_error', code: ValidationError, when: 'Bad date format or unknown ID' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: false`
 
 ### `noaa_climate_list_data_categories`
@@ -180,7 +208,7 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
 - **Description**: List data categories that group related data types — Temperature, Precipitation, Wind, etc. Use to discover what types of measurements are available before calling `noaa_climate_list_data_types`. Optionally filter by dataset, location, station, or date range.
 - **Input**: `datasetId?: string`, `locationId?: string`, `stationId?: string`, `startDate?: string`, `endDate?: string`, `sortField?`, `sortOrder?`, `limit`, `offset`
 - **Output**: `{ results: Array<{ id, name }>, metadata: { resultset: { count, limit, offset } } }`
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'upstream_auth_failed', code: ConfigurationError, when: 'CDO rejected the API token this server is configured with' }`, `{ reason: 'validation_error', code: ValidationError, when: 'A filter parameter is not recognized by the CDO API' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: false`
 
 ### `noaa_climate_list_data_types`
@@ -188,7 +216,7 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
 - **Description**: List available data types (measurement labels like TMAX, TMIN, PRCP, SNOW) for a given dataset or category. Pass a `datasetId` to see what's measured in that dataset, or a `datacategoryId` (e.g., `TEMP`) to see all temperature-related types. Required before querying data when the data type IDs are unknown.
 - **Input**: `datasetId?: string`, `datacategoryId?: string`, `locationId?: string`, `stationId?: string`, `startDate?: string`, `endDate?: string`, `sortField?`, `sortOrder?`, `limit`, `offset`
 - **Output**: `{ results: Array<{ id, name, datacoverage, mindate, maxdate }>, metadata: { resultset: { count, limit, offset } } }`
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'upstream_auth_failed', code: ConfigurationError, when: 'CDO rejected the API token this server is configured with' }`, `{ reason: 'validation_error', code: ValidationError, when: 'A filter parameter is not recognized by the CDO API' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: false`
 
 ### `noaa_climate_list_location_categories`
@@ -196,7 +224,7 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
 - **Description**: List the location categories that scope `noaa_climate_find_locations` — 12 in total: `CITY`, `CLIM_DIV`, `CLIM_REG`, `CNTRY`, `CNTY`, `HYD_ACC`, `HYD_CAT`, `HYD_REG`, `HYD_SUB`, `ST`, `US_TERR`, `ZIP`. Call it when the `locationCategoryId` to use is unknown.
 - **Input**: `sortField?: enum('id'|'name')`, `sortOrder?: enum('asc'|'desc')`, `limit: number (default 25, max 1000)`, `offset: number (default 0)`. No domain filters — CDO ignores `datasetid`, `locationid`, `stationid`, and the date range on `/locationcategories`, verified live.
 - **Output**: `{ results: Array<{ id, name }>, metadata: { resultset: { count, limit, offset } } }`
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'validation_error', code: ValidationError, when: 'A pagination or sort parameter is not recognized' }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'upstream_auth_failed', code: ConfigurationError, when: 'CDO rejected the API token this server is configured with' }`, `{ reason: 'validation_error', code: ValidationError, when: 'A pagination or sort parameter is not recognized' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: false`
 
 ### `noaa_climate_find_locations`
@@ -204,7 +232,7 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
 - **Description**: Search for geographic locations by category (CITY, ST, CNTY, CNTRY, ZIP, CLIM_REG, etc.). Returns location IDs used in station search and data queries. Without `locationCategoryId`, returns all location types. Use `locationCategoryId=ST` to list US states (51), `locationCategoryId=CITY` for cities (1,989). The API has no name-search parameter, so `nameContains` synthesizes one client-side for any category of at most 4,000 locations; past that limit — `ZIP` (30,415) — narrow with `datasetId`/`datacategoryId`, or sort alphabetically with `sortField=name` and page through results. Location IDs follow formats like `FIPS:37` (state), `CITY:US530018` (city), `ZIP:98101`.
 - **Input**: `locationCategoryId?: string` (e.g., `ST`, `CITY`, `CNTY`, `CNTRY`, `ZIP`, `US_TERR`, `CLIM_REG`; enumerate with `noaa_climate_list_location_categories`), `nameContains?: string` — case-insensitive substring match applied after a full client-side enumeration of the category; requires `locationCategoryId` and a category of at most 4,000 locations, `datasetId?: string`, `datacategoryId?: string`, `startDate?: string`, `endDate?: string`, `sortField?: enum('id'|'name'|'mindate'|'maxdate'|'datacoverage')`, `sortOrder?: enum('asc'|'desc')`, `limit: number (default 25, max 1000)`, `offset: number (default 0)`
 - **Output**: `{ results: Array<{ id, name, datacoverage, mindate, maxdate }>, appliedNameFilter?: string, metadata: { resultset: { count, limit, offset } } }`. With `nameContains` active, `count` is the exact post-filter match total and `offset` echoes the caller's zero-based offset — never CDO's raw echo from the internal enumeration fetch.
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'validation_error', code: ValidationError, when: 'A filter parameter is not recognized by the CDO API' }`, `{ reason: 'name_filter_requires_category', code: ValidationError, when: 'nameContains supplied without locationCategoryId' }`, `{ reason: 'name_filter_category_too_large', code: ValidationError, when: 'The category holds more locations than nameContains can enumerate' }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'upstream_auth_failed', code: ConfigurationError, when: 'CDO rejected the API token this server is configured with' }`, `{ reason: 'validation_error', code: ValidationError, when: 'A filter parameter is not recognized by the CDO API' }`, `{ reason: 'name_filter_requires_category', code: ValidationError, when: 'nameContains supplied without locationCategoryId' }`, `{ reason: 'name_filter_category_too_large', code: ValidationError, when: 'The category holds more locations than nameContains can enumerate' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: true`
 
 ### `noaa_climate_find_stations`
@@ -212,7 +240,7 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
 - **Description**: Search for weather observation stations by location, bounding box, dataset, and data type. Returns station IDs, names, coordinates, elevation, and data coverage dates. Filters by `locationId` (e.g., `FIPS:37` for NC), `extent` (lat/lon bounding box as `"minLat,minLon,maxLat,maxLon"`), `datasetId`, `datatypeId`, and date range. Station IDs returned here are used as `stationId` in `noaa_climate_fetch_data`.
 - **Input**: `locationId?: string`, `extent?: string` (e.g., `"47.5,-122.4,47.7,-122.1"`), `datasetId?: string`, `datatypeId?: string[]`, `datacategoryId?: string`, `startDate?: string`, `endDate?: string`, `sortField?`, `sortOrder?`, `limit`, `offset`
 - **Output**: `{ results: Array<{ id, name, latitude, longitude, elevation, mindate, maxdate, datacoverage }>, metadata: { resultset: { count, limit, offset } } }`
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'upstream_auth_failed', code: ConfigurationError, when: 'CDO rejected the API token this server is configured with' }`, `{ reason: 'validation_error', code: ValidationError, when: 'A filter parameter is not recognized by the CDO API' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: true`
 
 ### `noaa_climate_get_station`
@@ -220,7 +248,7 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
 - **Description**: Fetch full metadata for a single weather station by its ID (e.g., `GHCND:USW00024233`, `COOP:010008`). Returns name, coordinates, elevation, and the full date range for which data is available. Use when you have a station ID from `noaa_climate_find_stations` and want its details.
 - **Input**: `stationId: string` (e.g., `GHCND:USW00024233`)
 - **Output**: `{ id, name, latitude, longitude, elevation, mindate, maxdate, datacoverage }`
-- **Errors**: `{ reason: 'not_found', code: NotFound, when: 'Station ID format is valid but no station exists with that ID' }`, `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`
+- **Errors**: `{ reason: 'not_found', code: NotFound, when: 'Station ID format is valid but no station exists with that ID' }`, `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'upstream_auth_failed', code: ConfigurationError, when: 'CDO rejected the API token this server is configured with' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: false`
 
 ### `noaa_climate_fetch_data`
@@ -237,7 +265,7 @@ Use `NORMAL_HLY` (hourly) or `NORMAL_MLY` (monthly) for coarser granularity. All
   - `includemetadata?: boolean (default true)`
   - `sortField?`, `sortOrder?`, `limit`, `offset`
 - **Output**: `{ results: Array<{ date, datatype, station, value, attributes }>, metadata?: { resultset: { count, limit, offset } } }`
-- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'date_range_exceeded', code: InvalidParams, when: 'Date range exceeds 1 year for sub-daily/daily/radar datasets (GHCND, PRECIP_*, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) or 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN)' }`, `{ reason: 'validation_error', code: ValidationError, when: 'Bad dataset ID, date format, or unknown station/location ID' }`
+- **Errors**: `{ reason: 'service_unavailable', code: ServiceUnavailable, when: 'CDO API is down or unreachable', retryable: true }`, `{ reason: 'date_range_exceeded', code: InvalidParams, when: 'Date range exceeds 1 year for sub-daily/daily/radar datasets (GHCND, PRECIP_*, NORMAL_DLY, NORMAL_HLY, NEXRAD2, NEXRAD3) or 10 years for monthly/annual datasets (GSOM, GSOY, NORMAL_MLY, NORMAL_ANN)' }`, `{ reason: 'upstream_auth_failed', code: ConfigurationError, when: 'CDO rejected the API token this server is configured with' }`, `{ reason: 'validation_error', code: ValidationError, when: 'Bad dataset ID, date format, or unknown station/location ID' }`
 - **Annotations**: `readOnlyHint: true`, `openWorldHint: true`
 
 ---
@@ -312,7 +340,7 @@ Header: `token: <NOAA_CDO_TOKEN>`
 | `CITY:{id}` | `CITY:US530018` | City |
 | `ZIP:{5-digit}` | `ZIP:98101` | US zip code |
 | `FIPS:{2-letter}` | `FIPS:US` | Country (the `CNTRY` category, but IDs carry the `FIPS:` prefix) |
-| `CLIM_REG:{id}` | `CLIM_REG:SOUTHATL` | NOAA climate region |
+| `CLIM:{id}` | `CLIM:104` | NOAA climate region — the `CLIM_REG` category, but its IDs carry the `CLIM:` prefix |
 
 ### Common Station ID Formats
 | Format | Example | Notes |
@@ -344,5 +372,17 @@ Header: `token: <NOAA_CDO_TOKEN>`
 | 2026-08-18 | Date filters go on the wire in the canonical `YYYY-MM-DD[THH:MM:SS]` form, not the caller's string | CDO's parsers disagree with each other: `/data` rejects a compact `startdate` — with the misleading "The date range must be less than 1 year." — and rejects the unpadded dashed form outright, while every other endpoint accepts both. Normalizing at the edge keeps one schema across the whole surface *and* makes every advertised form work everywhere, which passing the caller's string through did not. |
 | 2026-08-18 | `NEXRAD2`/`NEXRAD3` carry the 1-year cap | CDO documents the cap for daily datasets only, yet enforces the same calendar-month boundary on radar: from a 2020-03-10 start, 2021-04-01 answers "The date range must be less than 1 year." while 2021-03-31 gets past the range check. Uncapped, an over-long radar request was forwarded and the caller got that opaque upstream error in place of `date_range_exceeded` and its computed `maxEndDate`. |
 | 2026-08-18 | Example station ID is `GHCND:USW00024233` | `GHCND:USC00450974` never resolved — CDO answers it with a bare `{}` — so an agent following the example landed on `not_found`. Replacements are verified against the live API before landing. |
+| 2026-08-18 | Billion-Dollar Disasters costs are exposed in whole US dollars, not the units NCEI writes | NCEI declares three different cost units across the four exports — millions per-event, billions for the national per-year, millions again for a per-state per-year — so relaying each file's own unit would make `minCostInUsd` mean something different per call and make two responses from the same tool incomparable. One exposed unit removes the ambiguity, and the field names carry it (`cpiAdjustedCostInUsd`, `costRangeInUsd`). |
+| 2026-08-18 | The cost multiplier is read from each file's preamble, never hardcoded per endpoint | Both files state their own unit in a leading comment line. Parsing it makes the declared unit the single source of truth, self-corrects if NCEI changes one, and turns an unrecognized unit into `malformed_export` instead of a silent 1,000x error. Hardcoding "events files are millions" would still be right today and wrong the moment NCEI restates a file. |
+| 2026-08-18 | The Billions per-year exports are parsed off their header, not off the scope | The national file publishes `"<Type> Cost"` plus six confidence-bound columns; the per-state file publishes `"<Type> Cost Range"` with a binned value and no point estimate — a shape difference the issue's national-only reading did not anticipate. Reading which columns exist keeps one parser correct for both instead of branching on national-vs-state. |
+| 2026-08-18 | `CsvStreamReader` moved to `src/services/csv/` | Two bulk-CSV services now parse with it. Importing it from inside `storm-events/` would imply a dependency on that domain that the Billions service does not have. Nothing else was extracted — filename discovery, gzip, the year LRU, and damage parsing are Storm Events' alone, and the Billions exports need none of them. |
+| 2026-08-18 | `CdoService` recovers CDO's own rejection message before rethrowing | `fetchWithTimeout` throws on a non-2xx before anything reads the body, so every 4xx reached the client as `Fetch failed for <url>. Status: 400` — a bad date form, an over-long range, a missing parameter, and an over-large `limit` were indistinguishable, and the message leaked the fully-parameterized URL. The body is not lost: the helper captures it under `data.body`, so the message is recoverable. CDO writes most faults as XML `<developerMessage>` and its token failures as JSON `message`, so both are matched. |
+| 2026-08-18 | A rejected API token routes to `upstream_auth_failed`, not `validation_error` | The token failure is the one 4xx a well-formed request hits routinely, and the caller's inputs are not what broke — `validation_error`'s recovery sends the agent to re-verify IDs that were never wrong, and every retry fails identically, so the advice loops. The new reason names `NOAA_CDO_TOKEN` as the thing to fix. Every CDO-backed tool declares it under the same `ConfigurationError` code so a client branches on one value, and one shared predicate (`shared/upstream-auth.ts`) decides the routing — each route sends the same `token` header, so a per-tool copy of the pattern would be a per-tool copy to drift. |
+| 2026-08-18 | No routing on CDO's upstream range sentence | `KNOWN_DATASETS` is exactly `ONE_YEAR_DATASETS ∪ MONTHLY_DATASETS` and `maxSpanYearsForDataset()` returns a cap for every member, so a datasetId reaching the request always has a local cap and one that does not is rejected as `validation_error` before any request is made. The local caps were verified against CDO's own boundary: `GHCND` 2024-01-15..2025-01-31 answers 200 and 2025-02-01 answers 400; `GSOM` 2010-05-01..2020-05-31 answers 200 and 2020-06-01 answers 400. A branch on the upstream sentence was therefore unreachable, and a dataset CDO caps without documenting it is when it earns its place. |
+| 2026-08-18 | An unexplained CDO failure carries a recovery hint of its own | CDO's front end answers an over-long request URL with HTTP 414 and an Apache error page — no `<developerMessage>`, no JSON `message` — and 414 maps to `InvalidRequest`, past every tool's `InvalidParams` routing, so the caller got a bare status with no next move. The hint is attached in `explainCdoFailure` where the message extraction already failed, covering every route at one site rather than capping `datatypeId` at a guessed array length. |
+| 2026-08-18 | A state-scoped events response declares its `costBasis` | The per-state rows carry the whole disaster's national cost, which the tool description, README, and this doc all say — and none of which an agent re-reads while paging results. `scope: "CA"` beside `$30,000,000,000` reads as a California figure, so the response states the basis for itself, in `structuredContent` and in the rendered text. |
+| 2026-08-18 | `coveredYears` is read from both ends of every row | The year filter matches on overlap, so a 2023 query returns a disaster that began in December 2022 — under a coverage line reading 1982–2022 when the span was built from begin years alone. The span now folds in end years, so it cannot end before a row the same response returned. |
+| 2026-08-18 | `CLIM_REG:` is not a location ID prefix — climate regions are `CLIM:104` | `CLIM_REG` is the location *category*; its locations carry the `CLIM:` prefix. The documented `CLIM_REG:SOUTHATL` was unresolvable at the prefix, before its value was even in question. |
+| 2026-08-18 | Example identifiers are checked against the live API in an opt-in `live` vitest project | Three dead example IDs reached production because nothing could catch them: the linter checks schema shape, typecheck cannot reach a string literal's meaning, and the unit suite runs on fixtures by design. Extraction is tractable because the identifiers have a rigid `PREFIX:VALUE` shape. The lane is a separate vitest project so `bun run test` stays hermetic; `bun run test:live` opts in. The extraction rules themselves are pinned by a hermetic unit test, so the live lane cannot pass by matching nothing. |
 | 2026-05-23 | Added typed error contracts to all tools | Structured `{ reason, code, when, retryable }` format required for `ctx.fail` type-checking. |
 | 2026-05-23 | Documented camelCase→lowercase param translation responsibility | CDO API requires lowercase param names; MCP input schemas use camelCase. CdoService owns the translation. |
