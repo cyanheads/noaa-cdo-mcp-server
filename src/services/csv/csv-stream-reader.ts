@@ -1,9 +1,10 @@
 /**
- * @fileoverview Incremental RFC 4180 CSV reader for the NCEI Storm Events bulk
- * export. Text arrives in arbitrary chunks from the decompression stream, so the
- * reader carries its quote and field state across `push()` calls and yields only
- * records it has seen terminated.
- * @module services/storm-events/csv
+ * @fileoverview Incremental RFC 4180 CSV reader for the NCEI bulk exports. Text
+ * arrives in arbitrary chunks — from a decompression stream for Storm Events, in
+ * one piece for the small Billion-Dollar Disasters files — so the reader carries
+ * its quote and field state across `push()` calls and yields only records it has
+ * seen terminated.
+ * @module services/csv/csv-stream-reader
  */
 
 const QUOTE = 34;
@@ -15,9 +16,11 @@ const CARRIAGE_RETURN = 13;
  * Streaming CSV record reader.
  *
  * Written by hand rather than pulled from npm because the whole contract is
- * quoted fields, doubled-quote escapes, and CRLF — and the Storm Events export
- * needs all three: its narrative columns are quoted and carry embedded commas,
- * and 2024 alone holds 11,905 doubled-quote escapes.
+ * quoted fields, doubled-quote escapes, and CRLF — and the NCEI exports need
+ * all three: Storm Events narrative columns are quoted and carry embedded
+ * commas, 2024 alone holds 11,905 doubled-quote escapes, and 37 of the 403
+ * Billion-Dollar Disasters names are quoted for the same reason ("Severe
+ * Storms, Flash Floods, Hail, Tornadoes (May 1981)").
  *
  * Fields are accumulated by slicing the chunk rather than appending per
  * character, so an unquoted field costs one slice regardless of length.

@@ -14,7 +14,7 @@ import {
   serviceUnavailable,
 } from '@cyanheads/mcp-ts-core/errors';
 import { fetchWithTimeout, requestContextService, withRetry } from '@cyanheads/mcp-ts-core/utils';
-import { CsvStreamReader } from './csv.js';
+import { CsvStreamReader } from '@/services/csv/csv-stream-reader.js';
 import { parseDamageEstimate } from './damage.js';
 import type { StormEvent, StormEventsQuery, StormEventsSearchResult } from './types.js';
 

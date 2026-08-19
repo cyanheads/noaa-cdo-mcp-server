@@ -1,13 +1,13 @@
 /**
  * @fileoverview Tests for CsvStreamReader — the incremental RFC 4180 reader the
- * Storm Events bulk export is parsed with. The export quotes its narrative
- * columns, embeds commas inside them, and writes doubled-quote escapes (11,905
- * of them in 2024 alone), so those cases are the contract, not edge cases.
- * @module tests/services/storm-events-csv.test
+ * NCEI bulk exports are parsed with. The exports quote their text columns, embed
+ * commas inside them, and write doubled-quote escapes (11,905 of them in Storm
+ * Events 2024 alone), so those cases are the contract, not edge cases.
+ * @module tests/services/csv-stream-reader.test
  */
 
 import { describe, expect, it } from 'vitest';
-import { CsvStreamReader } from '@/services/storm-events/csv.js';
+import { CsvStreamReader } from '@/services/csv/csv-stream-reader.js';
 
 /** Read a whole source through the reader, optionally split into fixed-size chunks. */
 function readAll(source: string, chunkSize = source.length): string[][] {
