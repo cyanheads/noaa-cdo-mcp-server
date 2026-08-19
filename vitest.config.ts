@@ -23,7 +23,21 @@ export default mergeConfig(
           test: {
             name: 'unit',
             include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
-            exclude: ['tests/smoke/**', 'tests/integration/**', 'tests/fuzz/**'],
+            exclude: ['tests/smoke/**', 'tests/integration/**', 'tests/fuzz/**', 'tests/live/**'],
+          },
+        },
+        {
+          extends: true,
+          test: {
+            // Opt-in only — `bun run test` runs the `unit` project, so nothing
+            // in the default lane reaches the network. These specs resolve the
+            // example identifiers the server advertises against the real CDO
+            // API, which needs NOAA_CDO_TOKEN and respects its 5-requests-per-
+            // second limit, hence the single worker.
+            name: 'live',
+            include: ['tests/live/**/*.test.ts'],
+            maxWorkers: 1,
+            testTimeout: 30_000,
           },
         },
         // Add more projects as your suite grows. Each inherits the framework's
