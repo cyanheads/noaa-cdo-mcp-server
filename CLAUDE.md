@@ -1,10 +1,10 @@
 # Developer Protocol
 
 **Server:** noaa-climate-mcp-server
-**Version:** 0.6.1
-**Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.11.5`
+**Version:** 0.6.2
+**Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) `^0.12.3`
 **Engines:** Bun ≥1.3.0, Node ≥24.0.0
-**MCP SDK:** `@modelcontextprotocol/sdk` ^1.30.0
+**MCP SDK:** `@modelcontextprotocol/server` ^2.0.0
 **Zod:** ^4.4.3
 
 > **Read the framework docs first:** `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` contains the full API reference — builders, Context, error codes, exports, patterns. This file covers server-specific conventions only.
@@ -61,7 +61,7 @@ Tailor suggestions to what's actually missing or stale — don't recite the full
 - **Logic throws, framework catches.** Tool/resource handlers are pure — throw on failure, no `try/catch`. Plain `Error` is fine; the framework catches, classifies, and formats. Use error factories (`notFound()`, `validationError()`, etc.) when the error code matters.
 - **Use `ctx.log`** for request-scoped logging. No `console` calls.
 - **Use `ctx.state`** for tenant-scoped storage. Never access persistence directly.
-- **Check `ctx.elicit`** for presence before calling.
+- **Need extra input after a call?** Return `ctx.requestInput(...)` and read `ctx.inputs` on the next call. This server has no current elicitation call sites.
 - **Secrets in env vars only** — never hardcoded.
 - **Close the loop on issues.** When implementing work tracked by a GitHub issue, comment on the issue with what landed and close it. Do both — a comment without a close leaves stale issues open; a close without a comment leaves no record of what shipped. The comment is for future readers — state the concrete changes, not the conversation that produced them.
 
@@ -69,122 +69,29 @@ Tailor suggestions to what's actually missing or stale — don't recite the full
 
 ## Patterns
 
-### Tool
+The implementation itself is the canonical example. Start with these representative definitions:
 
-```ts
-import { tool, z } from '@cyanheads/mcp-ts-core';
+| Primitive | Source | Pattern demonstrated |
+|:---|:---|:---|
+| Tool | `src/mcp-server/tools/definitions/noaa-climate-list-location-categories.tool.ts` | Strict input/output schemas, declared errors, success enrichment, and equivalent `format()` text |
+| Tool | `src/mcp-server/tools/definitions/noaa-climate-get-station.tool.ts` | Cross-tool ID workflow, typed failure routing, and sparse upstream fields preserved as optional |
+| Resource | `src/mcp-server/resources/definitions/noaa-station.resource.ts` | URI-template params, request context propagation, and typed not-found recovery |
+| Config | `src/config/server-config.ts` | Lazy `parseEnvConfig()` mapping from `token` to the required `NOAA_CDO_TOKEN` env var |
+| Entry point | `src/index.ts` | Machine-name identity, tool/resource registration, service initialization, and server instructions |
 
-export const searchItems = tool('search_items', {
-  description: 'Search inventory items by query.',
-  annotations: { readOnlyHint: true },
-  input: z.object({
-    query: z.string().describe('Search terms'),
-    limit: z.number().default(10).describe('Max results'),
-  }),
-  output: z.object({
-    items: z.array(z.object({
-      id: z.string().describe('Item ID'),
-      name: z.string().describe('Item name'),
-    })).describe('Matching items'),
-  }),
-  auth: ['inventory:read'],
+There are no prompts. Do not add prompt examples or prompt directories to documentation until the server exposes a real prompt.
 
-  async handler(input, ctx) {
-    const items = await findItems(input.query, input.limit);
-    ctx.log.info('Search completed', { query: input.query, count: items.length });
-    return { items };
-  },
-
-  // format() populates content[] — the markdown twin of structuredContent.
-  // Different clients read different surfaces (Claude Code → structuredContent,
-  // Claude Desktop → content[]); both must carry the same data.
-  // Enforced at lint time: every field in `output` must appear in the rendered text.
-  format: (result) => [{
-    type: 'text',
-    text: result.items.map(i => `**${i.id}**: ${i.name}`).join('\n'),
-  }],
-});
-```
-
-### Resource
-
-```ts
-import { resource, z } from '@cyanheads/mcp-ts-core';
-import { notFound } from '@cyanheads/mcp-ts-core/errors';
-
-export const itemData = resource('inventory://{itemId}', {
-  description: 'Fetch an inventory item by ID.',
-  params: z.object({ itemId: z.string().describe('Item identifier') }),
-  auth: ['inventory:read'],
-  async handler(params, ctx) {
-    const item = await ctx.state.get(`item/${params.itemId}`);
-    if (!item) throw notFound(`Item ${params.itemId} not found`, { itemId: params.itemId });
-    return item;
-  },
-});
-```
-
-### Prompt
-
-```ts
-import { prompt, z } from '@cyanheads/mcp-ts-core';
-
-export const reviewCode = prompt('review_code', {
-  description: 'Review code for issues and best practices.',
-  args: z.object({
-    code: z.string().describe('Code to review'),
-    language: z.string().optional().describe('Programming language'),
-  }),
-  generate: (args) => [
-    { role: 'user', content: { type: 'text', text: `Review this ${args.language ?? ''} code:\n${args.code}` } },
-  ],
-});
-```
-
-### Server config
-
-```ts
-// src/config/server-config.ts — lazy-parsed, separate from framework config
-import { z } from '@cyanheads/mcp-ts-core';
-import { parseEnvConfig } from '@cyanheads/mcp-ts-core/config';
-
-const ServerConfigSchema = z.object({
-  apiKey: z.string().describe('External API key'),
-  maxResults: z.coerce.number().default(100),
-  verboseLogging: z.stringbool().default(false).describe('Enable verbose logging'),
-});
-
-let _config: z.infer<typeof ServerConfigSchema> | undefined;
-export function getServerConfig() {
-  _config ??= parseEnvConfig(ServerConfigSchema, {
-    apiKey: 'MY_API_KEY',
-    maxResults: 'MY_MAX_RESULTS',
-    verboseLogging: 'MY_VERBOSE_LOGGING',
-  });
-  return _config;
-}
-```
-
-`parseEnvConfig` maps Zod schema paths → env var names so errors name the variable (`MY_API_KEY`) not the path (`apiKey`). Throws `ConfigurationError`, which the framework prints as a clean startup banner.
-
-For env booleans use `z.stringbool()`, never `z.coerce.boolean()` — `Boolean("false")` is `true`, so a coerced flag can't be disabled through the environment. `z.stringbool()` parses `true/false/1/0/yes/no/on/off` and rejects anything else, so `=false` actually disables.
-
-### Server identity and instructions
-
-`createApp()` accepts optional identity fields forwarded to the SDK's `initialize` response and the server manifest (`/.well-known/mcp.json`):
+`createApp()` identity is deliberately the unscoped machine name on both fields:
 
 ```ts
 await createApp({
-  name: 'my-mcp-server',
-  title: 'My Server',                         // human-readable display name
-  websiteUrl: 'https://github.com/owner/repo', // canonical homepage URL
-  description: 'One-line description.',        // wins over MCP_SERVER_DESCRIPTION
-  icons: [{ src: 'https://example.com/icon.png', sizes: ['48x48'], mimeType: 'image/png' }],
-  instructions: 'Use shortcut alpha for the most common case.', // session-level context
+  name: 'noaa-climate-mcp-server',
+  title: 'noaa-climate-mcp-server',
+  // tools, resources, instructions, and setup are registered in src/index.ts
 });
 ```
 
-`instructions` is optional server-level orientation, sent on every `initialize` as session-level context. Use it for deployment guidance (connection aliases, regional notes, scope hints) instead of repeating the same context across tool descriptions. Client adoption is uneven, but there's no downside when set.
+Do not duplicate `package.json` description or homepage metadata into `createApp()`; the framework derives canonical metadata from the package.
 
 ---
 
@@ -194,15 +101,11 @@ Handlers receive a unified `ctx` object. Key properties:
 
 | Property | Description |
 |:---------|:------------|
-| `ctx.log` | Request-scoped logger — `.debug()`, `.info()`, `.notice()`, `.warning()`, `.error()`. Auto-correlates requestId, traceId, tenantId. |
-| `ctx.state` | Tenant-scoped KV — `.get(key)`, `.set(key, value, { ttl? })`, `.delete(key)`, `.getMany(keys)`, `.list(prefix, { cursor, limit })`. Accepts any serializable value. |
-| `ctx.elicit` | Ask user for structured input — form call `(message, schema)` or `.url(message, url)` for an external link. **Check for presence first:** `if (ctx.elicit) { ... }` |
+| `ctx.log` | Request-scoped dual-sink logger — server output plus MCP `notifications/message` when the client enables that level. Never log the CDO token. |
 | `ctx.enrich` | Success-path agent context (empty-result notices, query echo, pagination totals) — `ctx.enrich(...)` or `.notice()` / `.total()` / `.echo()` / `.truncated()`. Reaches `structuredContent` and `content[]`; lands only when the definition declares an `enrichment` block (no-op otherwise). |
-| `ctx.content` | Non-text content blocks — `.image(data, mimeType)`, `.audio(data, mimeType)`, or `ctx.content(block)` for a raw block. Prepended to `content[]` after `format()`; never enters `structuredContent`. |
+| `ctx.fail` / `ctx.recoveryFor` | Emit a declared tool/resource failure and carry its canonical recovery hint. |
 | `ctx.signal` | `AbortSignal` for cancellation. |
-| `ctx.progress` | Task progress (present when `task: true`) — `.setTotal(n)`, `.increment()`, `.update(message)`. |
-| `ctx.requestId` | Unique request ID. |
-| `ctx.tenantId` | Tenant ID from JWT; `'default'` for stdio or HTTP with auth off. |
+| `ctx.requestId` / `ctx.tenantId` / `ctx.auth` | Propagated by passing the complete `ctx` as `parentContext` when a service creates an operation context. |
 
 ---
 
@@ -256,18 +159,19 @@ See framework CLAUDE.md and the `api-errors` skill for the full auto-classificat
 src/
   index.ts                              # createApp() entry point
   config/
-    server-config.ts                    # Server-specific env vars (Zod schema)
+    server-config.ts                    # Required NOAA_CDO_TOKEN (Zod schema)
   services/
-    [domain]/
-      [domain]-service.ts               # Domain service (init/accessor pattern)
-      types.ts                          # Domain types
+    cdo/                                # CDO API client, pagination, raw types
+    csv/                                # Shared streaming RFC 4180 reader
+    storm-events/                       # Storm Events listing, download, parsing
+    billion-dollar-disasters/           # Disaster exports, unit normalization
   mcp-server/
     tools/definitions/
-      [tool-name].tool.ts               # Tool definitions
+      noaa-climate-*.tool.ts            # 10 tool definitions
+      shared/                           # Shared validation and upstream routing
     resources/definitions/
-      [resource-name].resource.ts       # Resource definitions
-    prompts/definitions/
-      [prompt-name].prompt.ts           # Prompt definitions
+      noaa-datasets.resource.ts         # Dataset catalog resource
+      noaa-station.resource.ts          # Station URI-template resource
 ```
 
 ---
@@ -316,7 +220,7 @@ Available skills:
 | `api-auth` | Auth modes, scopes, JWT/OAuth |
 | `api-canvas` | DataCanvas: register tabular data, run SQL, export, plus the `spillover()` helper for big result sets — Tier 3 opt-in |
 | `api-config` | AppConfig, parseConfig, env vars |
-| `api-context` | Context interface, logger, state, progress |
+| `api-context` | Context interface, dual-sink logger, state, requestInput/inputs, enrichment |
 | `api-errors` | McpError, JsonRpcErrorCode, error patterns |
 | `api-linter` | Definition linter rule catalog — invoked by `bun run lint:mcp` and `devcheck` |
 | `api-mirror` | MirrorService: persistent self-refreshing local mirror (embedded SQLite + FTS5) of a bulk upstream dataset — Tier 3 opt-in |
