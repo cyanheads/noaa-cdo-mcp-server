@@ -171,11 +171,7 @@ export class CdoService {
     const { token } = getServerConfig();
     const retryCtx = requestContextService.createRequestContext({
       operation: `cdo.${path}`,
-      parentContext: {
-        requestId: ctx.requestId,
-        tenantId: ctx.tenantId,
-        ...(ctx.auth ? { auth: ctx.auth } : {}),
-      },
+      parentContext: ctx,
     });
 
     return withRetry(

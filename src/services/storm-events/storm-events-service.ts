@@ -415,11 +415,7 @@ export class StormEventsService {
   private retryContext(operation: string, ctx: Context) {
     return requestContextService.createRequestContext({
       operation,
-      parentContext: {
-        requestId: ctx.requestId,
-        tenantId: ctx.tenantId,
-        ...(ctx.auth ? { auth: ctx.auth } : {}),
-      },
+      parentContext: ctx,
     });
   }
 }

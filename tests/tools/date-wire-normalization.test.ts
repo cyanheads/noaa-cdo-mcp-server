@@ -94,7 +94,11 @@ describe.each(TOOLS)('$name — date wire form', ({ def, method, args }) => {
   it.each(FORMS)('sends the $form form upstream as the canonical one', async (variant) => {
     const impl = install(method);
     const ctx = createMockContext({ errors: def.errors });
-    const input = def.input.parse({ ...args, ...variant });
+    const input = def.input.parse({
+      ...args,
+      startDate: variant.startDate,
+      endDate: variant.endDate,
+    });
 
     await def.handler(input as never, ctx as never);
 

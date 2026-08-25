@@ -170,28 +170,30 @@ describe('array identifier filters reject empty arrays and blank entries', () =>
   ] as const;
 
   const base = { datasetId: 'GHCND', startDate: '2024-07-01', endDate: '2024-07-07' };
+  const requiredInput = (def: (typeof cases)[number][1]) =>
+    def === noaaClimateFetchData ? base : {};
 
   it.each(cases)('%s rejects an empty array', (_label, def, field) => {
-    expect(() => def.input.parse({ ...base, [field]: [] })).toThrow();
+    expect(() => def.input.parse({ ...requiredInput(def), [field]: [] })).toThrow();
   });
 
   it.each(cases)('%s rejects an empty-string entry', (_label, def, field) => {
-    expect(() => def.input.parse({ ...base, [field]: [''] })).toThrow();
+    expect(() => def.input.parse({ ...requiredInput(def), [field]: [''] })).toThrow();
   });
 
   it.each(cases)('%s rejects a whitespace-only entry', (_label, def, field) => {
-    expect(() => def.input.parse({ ...base, [field]: ['  '] })).toThrow();
+    expect(() => def.input.parse({ ...requiredInput(def), [field]: ['  '] })).toThrow();
   });
 
   it.each(cases)('%s rejects a blank entry mixed with a valid one', (_label, def, field) => {
-    expect(() => def.input.parse({ ...base, [field]: ['TMAX', ''] })).toThrow();
+    expect(() => def.input.parse({ ...requiredInput(def), [field]: ['TMAX', ''] })).toThrow();
   });
 
   it.each(cases)('%s accepts real identifiers unmodified', (_label, def, field) => {
-    const parsed = def.input.parse({ ...base, [field]: ['TMAX', 'TMIN'] }) as Record<
-      string,
-      unknown
-    >;
+    const parsed = def.input.parse({
+      ...requiredInput(def),
+      [field]: ['TMAX', 'TMIN'],
+    }) as Record<string, unknown>;
     expect(parsed[field]).toEqual(['TMAX', 'TMIN']);
   });
 });

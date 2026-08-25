@@ -336,11 +336,7 @@ export class BillionDollarDisastersService {
     const url = `${this.baseUrl}${file}`;
     const retryCtx = requestContextService.createRequestContext({
       operation: 'billionDollarDisasters.download',
-      parentContext: {
-        requestId: ctx.requestId,
-        tenantId: ctx.tenantId,
-        ...(ctx.auth ? { auth: ctx.auth } : {}),
-      },
+      parentContext: ctx,
     });
 
     let text: string;
